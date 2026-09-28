@@ -19,4 +19,11 @@
 //
 // Essas chaves não são secretas (o Firebase foi desenhado para isso) — quem protege os dados são
 // as regras de segurança do banco, explicadas no mesmo passo a passo.
-window.FIREBASE_CONFIG = null;
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDK23BDQ0RJ41sosvFnQ7_c1MY9PEHv6u4",
+  authDomain: "polo-1740.firebaseapp.com",
+  projectId: "polo-1740",
+  storageBucket: "polo-1740.firebasestorage.app",
+  messagingSenderId: "793828338382",
+  appId: "1:793828338382:web:ab14cf4bc5dd0b64353e9f"
+};
