@@ -8,7 +8,7 @@
 
   /* ---------- Armazenamento local (por navegador) + sincronização opcional entre navegadores ---------- */
   const Sync = window.Sync || { configured: function () { return false; }, init: function () {}, push: function () { return Promise.resolve(false); } };
-  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log'];
+  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log', 'pratItens'];
   const LS = {
     get: function (k, def) { try { const v = localStorage.getItem('sp1740.' + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } },
     set: function (k, v) {
@@ -24,6 +24,7 @@
   const YM_HOJE = HOJE.slice(0, 7);
 
   const baseRows = function () { return DATA.rows.map(function (r, i) { return Object.assign({ id: 'a' + (i + 1) }, r); }); };
+  const basePratItens = function () { return ((DATA.praticas && DATA.praticas.itens) || []).map(function (p) { return Object.assign({}, p); }); };
   const PUBLICO = !!DATA.publico;
   const S = {
     rows: LS.get('rows', null) || baseRows(),
@@ -36,9 +37,10 @@
     aulaChk: LS.get('aulaChk', {}),
     matriculas: LS.get('matriculas', null),
     turmaCfg: LS.get('turmaCfg', {}),
-    log: LS.get('log', [])
+    log: LS.get('log', []),
+    pratItens: LS.get('pratItens', null) || basePratItens()
   };
-  const V = { view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
+  const V = { view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
   const D = {};
 
   const PROF_CORES = { Marcelo: '#2454c5', Marcos: '#c2410c', Michele: '#b0245a', Olavo: '#6b3fc4', Rafael: '#0e7490', Vitor: '#4d7c0f', 'Fabrício': '#7a6f5b' };
@@ -100,11 +102,12 @@
     rotina: '<path d="M4 6h16M4 12h10M4 18h7"/><path d="m16 15 2 2 4-4"/>',
     praticas: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 14h9"/>',
     guia: '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5V4.5"/>',
-    dados: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'
+    dados: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+    buscar: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>'
   };
   const VIEWS = [
     { id: 'semana', nome: 'Semana' }, { id: 'calendario', nome: 'Calendário' }, { id: 'professores', nome: 'Professores' },
-    { id: 'conferencia', nome: 'Conferência' }, { id: 'rotina', nome: 'Rotina do mês' }, { id: 'praticas', nome: 'Práticas EAD' }, { id: 'guia', nome: 'Guia rápido' }, { id: 'dados', nome: 'Dados' }
+    { id: 'conferencia', nome: 'Conferência' }, { id: 'rotina', nome: 'Rotina do mês' }, { id: 'praticas', nome: 'Práticas EAD' }, { id: 'buscar', nome: 'Buscar' }, { id: 'guia', nome: 'Guia rápido' }, { id: 'dados', nome: 'Dados' }
   ];
   function svg(id) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[id] + '</svg>'; }
 
@@ -313,9 +316,12 @@
   }
   function viewPraticas() {
     const P = DATA.praticas;
-    if (!P || !P.itens || !P.itens.length) return '<div class="topo"><div><h1>Práticas EAD</h1><p>Nenhuma prática cadastrada.</p></div></div>';
+    if (!P) return '<div class="topo"><div><h1>Práticas EAD</h1><p>Nenhuma prática cadastrada.</p></div></div>';
+    const todas = S.pratItens || [];
+    const passadas = todas.filter(function (p) { return L.diffDays(HOJE, p.data) < 0; }).length;
+    const itensVisiveis = todas.filter(function (p) { return V.pratPassado || L.diffDays(HOJE, p.data) >= 0; });
     const lis = function (arr) { return arr && arr.length ? '<ul>' + arr.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '<p class="muted small">Nada além dos materiais enviados pela UniFECAF.</p>'; };
-    const cards = P.itens.slice().sort(function (a, b) { return a.data < b.data ? -1 : 1; }).map(function (p) {
+    const cards = itensVisiveis.slice().sort(function (a, b) { return a.data < b.data ? -1 : 1; }).map(function (p) {
       const st = S.prat[p.id] || { chk: {}, prof: '' }, chk = st.chk || {};
       const profSel = st.prof || p.prof || '', t = profSel ? tel(profSel) : '';
       const msg = L.mensagemPratica(p, { prof: profSel, assinatura: S.cfg.assinatura, curso: P.curso });
@@ -344,10 +350,13 @@
           return '<label class="check"><input type="checkbox" data-chg="prat-chk" data-id="' + esc(p.id) + '" data-k="' + c[0] + '"' + (chk[c[0]] ? ' checked' : '') + '>' + rot + '</label>';
         }).join('') + '</fieldset>' +
         '<div class="rod"><select data-chg="prat-prof" data-id="' + esc(p.id) + '" aria-label="Professor da prática">' + opcoes + '</select>' + wa +
-        '<button type="button" class="btn sm" data-act="prat-copiar" data-id="' + esc(p.id) + '">Copiar mensagem</button></div></article>';
+        '<button type="button" class="btn sm" data-act="prat-copiar" data-id="' + esc(p.id) + '">Copiar mensagem</button>' +
+        '<button type="button" class="btn sm" data-act="editar-pratica" data-id="' + esc(p.id) + '">Editar</button></div></article>';
     }).join('');
-    return '<div class="topo"><div><h1>Práticas EAD · ' + esc(P.curso) + '</h1><p>Encontros de prática dos alunos EAD no polo: datas, materiais, preparação do professor e evidências. Profissional apto para a aula: ' + esc(P.apto) + '.</p></div></div>' +
-      '<div class="prats">' + cards + '</div>' +
+    return '<div class="topo"><div><h1>Práticas EAD · ' + esc(P.curso) + '</h1><p>Encontros de prática dos alunos EAD no polo: datas, materiais, preparação do professor e evidências. Profissional apto para a aula: ' + esc(P.apto) + '.</p></div>' +
+      '<div class="acoes nav-sem"><button type="button" class="btn primario" data-act="nova-pratica">Nova prática</button></div></div>' +
+      '<div class="acoes"><label class="check"><input type="checkbox" data-chg="pratPassado"' + (V.pratPassado ? ' checked' : '') + '> Incluir práticas já realizadas' + (passadas ? ' (' + passadas + ')' : '') + '</label></div>' +
+      '<div class="prats">' + (cards || '<p class="muted small">Nenhuma prática futura cadastrada.</p>') + '</div>' +
       '<section class="bloco" style="margin-top:1.2rem"><h2>Depois de cada aula</h2><p class="muted small">O professor envia as evidências pelo formulário da UniFECAF:</p><ul>' + P.evidencias.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>' +
       '<p class="muted small" style="margin-top:.6rem">Formulário de experiência do aluno (o mesmo para todas as práticas): <a href="' + esc(P.formExperiencia) + '" target="_blank" rel="noopener">abrir</a> · Grupo de tutores no WhatsApp: <a href="' + esc(P.whatsappTutores) + '" target="_blank" rel="noopener">entrar</a></p></section>';
   }
@@ -414,6 +423,51 @@
       '<div class="acoes nav-sem"><button type="button" class="btn" data-act="rot-prev" aria-label="Mês anterior">‹</button><button type="button" class="btn" data-act="rot-hoje">Hoje</button><button type="button" class="btn" data-act="rot-next" aria-label="Próximo mês">›</button></div></div>' +
       '<div class="dois"><div><ul class="linha-tempo">' + lista + '</ul></div><div class="lateral"><section class="bloco"><h2>Aulas do mês</h2>' + (gs.length ? '<div class="rolagem"><table class="tabela"><thead><tr><th>Data</th><th>Aula</th><th>Professor</th><th>Materiais até</th></tr></thead><tbody>' + linhasAulas + '</tbody></table></div><p class="muted small" style="margin-top:.6rem">A sede envia os insumos com até 7 dias de antecedência. O que o polo precisa providenciar está no <a href="' + L.LINKS.portal + '" target="_blank" rel="noopener">portal de materiais</a>.</p>' : '<p class="muted">Sem aulas neste mês.</p>') + '</section></div></div>' +
       '<section class="bloco" style="margin-top:1.4rem"><h2>Abrir um curso novo no polo</h2><p class="muted">Fluxo oficial do Semipresencial, na ordem em que acontece.</p><ol class="passos">' + PASSOS_CURSO.map(function (s) { return '<li><b>' + s[0] + '</b><div class="muted">' + s[1] + '</div></li>'; }).join('') + '</ol></section>';
+  }
+
+  /* ---------- Buscar ---------- */
+  function buscarTudo(q0) {
+    const q = L.norm((q0 || '').trim());
+    if (!q) return [];
+    const out = [];
+    const vistosGrupo = {};
+    D.grupos.forEach(function (g) {
+      if (vistosGrupo[g.key]) return;
+      const texto = L.norm([g.disc, g.cursos.join(' '), g.prof || '', g.sala || '', g.coortes.join(' ')].join(' '));
+      if (texto.indexOf(q) < 0) return;
+      vistosGrupo[g.key] = 1;
+      out.push({ tipo: 'Aula', titulo: g.disc, sub: g.cursos.join(', ') + ' · ' + L.fmtCurta(g.iso) + (g.prof ? ' · ' + g.prof : '') + (g.sala ? ' · ' + g.sala : ''), act: 'grupo', key: g.key });
+    });
+    S.pend.forEach(function (p) {
+      const texto = L.norm([p.titulo, p.detalhe || ''].join(' '));
+      if (texto.indexOf(q) < 0) return;
+      out.push({ tipo: 'Decisão pendente', titulo: p.titulo, sub: p.detalhe || '', act: 'ir-view', view: 'conferencia' });
+    });
+    (S.pratItens || []).forEach(function (p) {
+      const texto = L.norm([p.tema, p.semestre || '', p.prof || ''].join(' '));
+      if (texto.indexOf(q) < 0) return;
+      out.push({ tipo: 'Prática EAD', titulo: p.tema, sub: L.fmtCurta(p.data) + (p.prof ? ' · ' + p.prof : ''), act: 'ir-view', view: 'praticas' });
+    });
+    D.profs.forEach(function (n) {
+      if (L.norm(n).indexOf(q) < 0) return;
+      out.push({ tipo: 'Professor', titulo: n, sub: tel(n) || 'Sem telefone cadastrado', act: 'ir-view', view: 'professores' });
+    });
+    return out;
+  }
+  function renderResultadosBusca(q) {
+    if (!q.trim()) return '<p class="muted small">Comece a digitar para ver resultados.</p>';
+    const res = buscarTudo(q);
+    const lista = res.map(function (r) {
+      return '<article class="pitem"><div><h3>' + esc(r.titulo) + '</h3><div class="meta">' + esc(r.tipo) + (r.sub ? ' · ' + esc(r.sub) : '') + '</div></div>' +
+        '<div class="acoes">' + (r.act === 'grupo' ? '<button type="button" class="btn sm" data-act="grupo" data-key="' + esc(r.key) + '">Abrir</button>' : '<button type="button" class="btn sm" data-act="ir-view" data-view="' + esc(r.view) + '">Abrir</button>') + '</div></article>';
+    }).join('');
+    return lista || '<div class="vazio">Nada encontrado para “' + esc(q) + '”.</div>';
+  }
+  function viewBusca() {
+    const q = V.busca || '';
+    return '<div class="topo"><div><h1>Buscar</h1><p>Procure por disciplina, curso, professor, sala, decisão pendente ou prática EAD.</p></div></div>' +
+      '<label class="sr" for="busca-q">Buscar</label><input type="text" id="busca-q" placeholder="Ex.: Bases Morfofuncionais, Marcelo, Sala 4…" value="' + esc(q) + '" style="font-size:1rem;padding:.7rem .9rem;margin-bottom:1rem" autofocus>' +
+      '<div id="busca-resultados" class="pend">' + renderResultadosBusca(q) + '</div>';
   }
 
   /* ---------- Guia rápido ---------- */
@@ -622,6 +676,46 @@
     fecharDlg(); render(); toast('Alteração salva' + (Sync.configured() ? '' : ' neste navegador'));
   }
 
+  function abrirEditarPratica(id) {
+    const novo = !id, p = novo ? null : S.pratItens.find(function (x) { return x.id === id; });
+    if (!novo && !p) return;
+    abrirDlg(cabDlg(novo ? 'Nova prática EAD' : 'Editar prática EAD', novo ? '' : esc(DATA.praticas.curso)) +
+      '<div class="corpo" data-id="' + esc(id || '') + '" id="form-pratica"><div class="campos">' +
+      '<div class="largo"><label for="p-tema">Tema da prática</label><input type="text" id="p-tema" value="' + esc(p ? p.tema : '') + '"></div>' +
+      '<div><label for="p-data">Data do encontro</label><input type="date" id="p-data" value="' + esc(p ? p.data : '') + '"></div>' +
+      '<div><label for="p-hora">Horário</label><input type="text" id="p-hora" placeholder="9h às 12h" value="' + esc(p ? p.hora || '' : '') + '"></div>' +
+      '<div><label for="p-semestre">Semestre do curso</label><input type="text" id="p-semestre" placeholder="3º semestre" value="' + esc(p ? p.semestre || '' : '') + '"></div>' +
+      '<div><label for="p-prof">Professor padrão</label><input type="text" id="p-prof" list="lista-profs" value="' + esc(p ? p.prof || '' : '') + '"><datalist id="lista-profs">' + D.profs.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist></div>' +
+      '<div class="largo"><label for="p-video">Link do vídeo de capacitação</label><input type="text" id="p-video" value="' + esc(p ? p.video || '' : '') + '"></div>' +
+      '<div class="largo"><label for="p-pap">Link do PAP (material da prática)</label><input type="text" id="p-pap" value="' + esc(p ? p.pap || '' : '') + '"></div>' +
+      '<div class="largo"><label for="p-sede">A UniFECAF envia (um item por linha)</label><textarea id="p-sede" style="min-height:5rem">' + esc((p && p.sede || []).join('\n')) + '</textarea></div>' +
+      '<div class="largo"><label for="p-polo">O polo providencia (um item por linha)</label><textarea id="p-polo" style="min-height:4rem">' + esc((p && p.polo || []).join('\n')) + '</textarea></div>' +
+      '</div>' +
+      '<p class="muted small">Depois que a data passar, a prática some da lista sozinha — dá pra ver de novo marcando "Incluir práticas já realizadas".</p></div>' +
+      '<footer><button type="button" class="btn primario" data-act="salvar-pratica">Salvar</button>' + (novo ? '' : '<button type="button" class="btn perigo" data-act="excluir-pratica">Excluir</button>') + '<button type="button" class="btn fim" data-act="fechar">Cancelar</button></footer></div>');
+  }
+  function salvarPratica() {
+    const f = $('#form-pratica'); if (!f) return;
+    const id = f.dataset.id, novo = !id;
+    const tema = $('#p-tema').value.trim(); if (!tema) { toast('Informe o tema da prática'); return; }
+    const data = $('#p-data').value; if (!data) { toast('Informe a data do encontro'); return; }
+    const campos = {
+      tema: tema, data: data, hora: $('#p-hora').value.trim(), semestre: $('#p-semestre').value.trim(), prof: $('#p-prof').value.trim(),
+      video: $('#p-video').value.trim(), pap: $('#p-pap').value.trim(),
+      sede: $('#p-sede').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean),
+      polo: $('#p-polo').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean)
+    };
+    if (novo) {
+      S.pratItens.push(Object.assign({ id: 'pr' + Date.now().toString(36) }, campos));
+    } else {
+      const p = S.pratItens.find(function (x) { return x.id === id; }); if (!p) return;
+      Object.assign(p, campos);
+    }
+    LS.set('pratItens', S.pratItens);
+    registrar(novo ? 'Criou prática EAD' : 'Editou prática EAD', tema + ' · ' + L.fmtCurta(data));
+    fecharDlg(); render(); toast('Prática salva' + (Sync.configured() ? '' : ' neste navegador'));
+  }
+
   /* ---------- Importar / exportar ---------- */
   function lerArquivos(files) {
     const lidos = Array.from(files).map(function (f) {
@@ -659,7 +753,7 @@
     baixar('calendario-polo-1740.xlsx', XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   }
   function backup() {
-    baixar('backup-painel-1740.json', JSON.stringify({ versao: 1, rows: S.rows, contatos: S.contatos, status: S.status, tarefas: S.tarefas, cfg: S.cfg, pend: S.pend, prat: S.prat }, null, 1), 'application/json');
+    baixar('backup-painel-1740.json', JSON.stringify({ versao: 1, rows: S.rows, contatos: S.contatos, status: S.status, tarefas: S.tarefas, cfg: S.cfg, pend: S.pend, prat: S.prat, pratItens: S.pratItens }, null, 1), 'application/json');
   }
 
   /* ---------- Ações ---------- */
@@ -707,7 +801,7 @@
     importar: function () { $('#arquivo').click(); },
     'importar-matriculas': function () { $('#arquivo-matriculas').click(); },
     'exportar-xlsx': exportarXlsx,
-    datajs: function () { const rows = S.rows.map(function (r) { const o = Object.assign({}, r); delete o.id; return o; }); baixar('data.js', L.dataJs(rows, L.iso(new Date()), { responsavelCronograma: RESP, contatos: PUBLICO ? {} : S.contatos, pendencias: S.pend, praticas: DATA.praticas }), 'text/javascript;charset=utf-8'); toast('Troque o data.js do repositório por este arquivo'); },
+    datajs: function () { const rows = S.rows.map(function (r) { const o = Object.assign({}, r); delete o.id; return o; }); baixar('data.js', L.dataJs(rows, L.iso(new Date()), { responsavelCronograma: RESP, contatos: PUBLICO ? {} : S.contatos, pendencias: S.pend, praticas: Object.assign({}, DATA.praticas, { itens: S.pratItens }) }), 'text/javascript;charset=utf-8'); toast('Troque o data.js do repositório por este arquivo'); },
     restaurar: function () { if (!confirm('Descartar o rascunho local e voltar ao calendário publicado?')) return; LS.del('rows'); LS.del('rowsBase'); S.rows = baseRows(); recalc(); render(); toast('Rascunho descartado'); },
     'salvar-tels': function () { S.contatos = L.parseContatos($('#tels').value); LS.set('contatos', S.contatos); recalc(); registrar('Atualizou telefones', plural(Object.keys(S.contatos).length, 'contato', 'contatos')); render(); toast(plural(Object.keys(S.contatos).length, 'telefone salvo', 'telefones salvos')); },
     'salvar-ass': function () { S.cfg.assinatura = $('#ass').value.trim() || 'Coordenação Acadêmica — Polo 1740'; LS.set('cfg', S.cfg); toast('Assinatura salva'); },
@@ -726,16 +820,30 @@
       render();
     },
     'prat-copiar': function (el) {
-      const P = DATA.praticas, p = P.itens.find(function (x) { return x.id === el.dataset.id; }), st = S.prat[p.id] || {};
+      const P = DATA.praticas, p = S.pratItens.find(function (x) { return x.id === el.dataset.id; }); if (!p) return;
+      const st = S.prat[p.id] || {};
       copiar(L.mensagemPratica(p, { prof: st.prof || p.prof, assinatura: S.cfg.assinatura, curso: P.curso }));
     },
+    'nova-pratica': function () { abrirEditarPratica(null); },
+    'editar-pratica': function (el) { abrirEditarPratica(el.dataset.id); },
+    'salvar-pratica': salvarPratica,
+    'excluir-pratica': function () {
+      const f = $('#form-pratica'); if (!f) return;
+      const id = f.dataset.id; if (!confirm('Excluir esta prática?')) return;
+      const p = S.pratItens.find(function (x) { return x.id === id; });
+      S.pratItens = S.pratItens.filter(function (x) { return x.id !== id; }); LS.set('pratItens', S.pratItens);
+      if (p) registrar('Excluiu prática EAD', p.tema);
+      fecharDlg(); render(); toast('Prática excluída');
+    },
     'usar-publicado': function () { LS.del('rows'); LS.set('rowsBase', DATA.atualizado || ''); S.rows = baseRows(); recalc(); render(); toast('Mostrando o calendário publicado'); },
+    'ir-view': function (el) { location.hash = '#' + el.dataset.view; },
     'manter-rascunho': function () { LS.set('rowsBase', DATA.atualizado || ''); render(); }
   };
   const CHG = {
     fCurso: function (el) { V.fCurso = el.value; render(); },
     fProf: function (el) { V.fProf = el.value; render(); },
     passado: function (el) { V.passado = el.checked; render(); },
+    pratPassado: function (el) { V.pratPassado = el.checked; render(); },
     status: function (el) { const p = el.dataset.prof, k = el.dataset.k; S.status[p] = S.status[p] || {}; S.status[p][k] = el.checked; LS.set('status', S.status); render(); const n = $('input[data-chg="status"][data-prof="' + CSS.escape(p) + '"][data-k="' + k + '"]'); if (n) n.focus(); },
     tarefa: function (el) { const id = el.dataset.id; S.tarefas[id] = el.checked; LS.set('tarefas', S.tarefas); render(); const n = $('input[data-chg="tarefa"][data-id="' + CSS.escape(id) + '"]'); if (n) n.focus(); },
     'pend-feito': function (el) { const p = S.pend.find(function (x) { return x.id === el.dataset.id; }); if (!p) return; p.feito = el.checked; LS.set('pend', S.pend); if (el.checked) registrar('Resolveu pendência', p.titulo); render(); const n = $('input[data-chg="pend-feito"][data-id="' + CSS.escape(p.id) + '"]'); if (n) n.focus(); },
@@ -763,17 +871,24 @@
       el.files[0].text().then(function (t) {
         const b = JSON.parse(t); if (!b || !Array.isArray(b.rows)) throw new Error('Arquivo de backup inválido');
         if (!confirm('Substituir os dados deste navegador pelo backup?')) return;
-        S.rows = b.rows; S.contatos = b.contatos || {}; S.status = b.status || {}; S.tarefas = b.tarefas || {}; S.cfg = Object.assign(S.cfg, b.cfg || {}); if (b.pend) { S.pend = b.pend; LS.set('pend', S.pend); } if (b.prat) { S.prat = b.prat; LS.set('prat', S.prat); }
+        S.rows = b.rows; S.contatos = b.contatos || {}; S.status = b.status || {}; S.tarefas = b.tarefas || {}; S.cfg = Object.assign(S.cfg, b.cfg || {}); if (b.pend) { S.pend = b.pend; LS.set('pend', S.pend); } if (b.prat) { S.prat = b.prat; LS.set('prat', S.prat); } if (b.pratItens) { S.pratItens = b.pratItens; LS.set('pratItens', S.pratItens); }
         LS.set('contatos', S.contatos); LS.set('status', S.status); LS.set('tarefas', S.tarefas); LS.set('cfg', S.cfg); persistir(); render(); toast('Backup carregado');
       }).catch(function (err) { toast(err.message || 'Não consegui ler o backup'); }); el.value = ''; return;
     }
     if (el.dataset && el.dataset.chg && CHG[el.dataset.chg]) CHG[el.dataset.chg](el);
     if (el.id === 'e-d1' && el.value) { $('#e-mes').value = String(Number(el.value.slice(5, 7))); const d2 = $('#e-d2'); if (!d2.value) d2.value = L.addDays(el.value, 14); }
   });
-  document.addEventListener('input', function (e) { if (e.target.id === 'msgTxt') atualizarWa(); });
+  document.addEventListener('input', function (e) {
+    if (e.target.id === 'msgTxt') atualizarWa();
+    if (e.target.id === 'busca-q') {
+      V.busca = e.target.value;
+      const alvo = $('#busca-resultados');
+      if (alvo) alvo.innerHTML = renderResultadosBusca(V.busca);
+    }
+  });
 
   /* ---------- Render e rotas ---------- */
-  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, guia: viewGuia, dados: viewDados };
+  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, buscar: viewBusca, guia: viewGuia, dados: viewDados };
   function banner() {
     if (Sync.configured()) return '';
     const rascunho = LS.get('rows', null), base = LS.get('rowsBase', '');
