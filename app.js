@@ -8,7 +8,7 @@
 
   /* ---------- Armazenamento local (por navegador) + sincronização opcional entre navegadores ---------- */
   const Sync = window.Sync || { configured: function () { return false; }, init: function () {}, push: function () { return Promise.resolve(false); } };
-  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log', 'pratItens'];
+  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log', 'pratItens', 'ignorados'];
   const LS = {
     get: function (k, def) { try { const v = localStorage.getItem('sp1740.' + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } },
     set: function (k, v) {
@@ -38,9 +38,10 @@
     matriculas: LS.get('matriculas', null),
     turmaCfg: LS.get('turmaCfg', {}),
     log: LS.get('log', []),
-    pratItens: LS.get('pratItens', null) || basePratItens()
+    pratItens: LS.get('pratItens', null) || basePratItens(),
+    ignorados: LS.get('ignorados', {})
   };
-  const V = { view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
+  const V = { view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
   const D = {};
 
   const PROF_CORES = { Marcelo: '#2454c5', Marcos: '#c2410c', Michele: '#b0245a', Olavo: '#6b3fc4', Rafael: '#0e7490', Vitor: '#4d7c0f', 'Fabrício': '#7a6f5b' };
@@ -140,6 +141,35 @@
   const nomeMes = function (ym) { const p = ym.split('-'); return L.MESES[Number(p[1]) - 1] + ' de ' + p[0]; };
   const somaMes = function (ym, n) { const p = ym.split('-').map(Number); const d = new Date(p[0], p[1] - 1 + n, 1); return d.getFullYear() + '-' + L.pad(d.getMonth() + 1); };
   const tel = function (nome) { return S.contatos[nome] || ''; };
+
+  function imprimirListaProf(prof, ym) {
+    const evs = D.eventos.filter(function (e) {
+      return e.iso.slice(0, 7) === ym && (prof === '__sem' ? !e.prof : e.prof === prof);
+    }).slice().sort(function (a, b) { return a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : ((a.ini || 0) - (b.ini || 0)); });
+    const titulo = 'Calendário de ' + nomeMes(ym) + (prof && prof !== '__sem' ? ' — ' + prof : ' — sem professor');
+    const linhas = evs.map(function (e) {
+      return '<tr><td>' + esc(L.DIAS_CURTO[L.weekday(e.iso)]) + ' ' + esc(L.fmtCurta(e.iso)) + '</td>' +
+        '<td>' + esc(L.faixa(e.ini, e.fim)) + '</td>' +
+        '<td>' + esc(e.disc) + '</td>' +
+        '<td>' + esc(e.cursoCurto || e.curso || '') + '</td>' +
+        '<td>' + esc(e.sala || '') + '</td></tr>';
+    }).join('');
+    const corpo = evs.length
+      ? '<table class="lista-impressao"><thead><tr><th>Data</th><th>Horário</th><th>Disciplina</th><th>Curso</th><th>Sala</th></tr></thead><tbody>' + linhas + '</tbody></table>'
+      : '<p>Nenhuma aula neste mês.</p>';
+    let cont = document.getElementById('impressao-prof');
+    if (!cont) { cont = document.createElement('div'); cont.id = 'impressao-prof'; document.body.appendChild(cont); }
+    cont.innerHTML = '<h1>' + esc(titulo) + '</h1>' + corpo;
+    const nomeArq = 'Calendario ' + nomeMes(ym) + (prof && prof !== '__sem' ? ' - ' + prof : ' - sem professor');
+    const antigo = document.title; document.title = nomeArq;
+    document.body.classList.add('imprimindo-lista');
+    toast('Escolha "Salvar como PDF" na janela de impressão');
+    setTimeout(function () {
+      window.print();
+      document.title = antigo;
+      document.body.classList.remove('imprimindo-lista');
+    }, 150);
+  }
 
   function cardGrupo(g) {
     const sev = sevGrupo(g), cor = corProf(g.prof);
@@ -362,9 +392,12 @@
   }
 
   /* ---------- Conferência ---------- */
+  function sigIssue(i) { return (i.aulaId || i.aulaIds.join(',')) + '|' + i.tipo + '|' + i.msg; }
   function viewConferencia() {
-    const todos = D.issues.filter(function (i) { return V.passado || i.fim >= HOJE; });
+    const porData = D.issues.filter(function (i) { return V.passado || i.fim >= HOJE; });
     const passadas = D.issues.length - D.issues.filter(function (i) { return i.fim >= HOJE; }).length;
+    const ignoradas = porData.filter(function (i) { return S.ignorados[sigIssue(i)]; }).length;
+    const todos = porData.filter(function (i) { return V.verIgnorados || !S.ignorados[sigIssue(i)]; });
     const itens = []; const porAula = {};
     todos.forEach(function (i) {
       if (i.tipo === 'conflito-prof') { itens.push({ iso: i.iso, sev: i.sev, ids: i.aulaIds, titulo: 'Professor em duas aulas ao mesmo tempo', aulas: i.aulaIds.map(function (id) { return D.porId[id]; }), issues: [i], conflito: true }); return; }
@@ -387,10 +420,16 @@
       const cursos = Array.from(new Set(it.aulas.map(function (a) { return a.cursoCurto; })));
       return '<article class="pitem ' + it.sev + '"><div><h3>' + esc(it.titulo) + '</h3><div class="meta">' + esc(cursos.join(', ')) + (a0 && !it.conflito && !it.conflitoSala ? ' · ' + esc(a0.mesTxt.toLowerCase()) + ' · planilha: “' + esc(a0.datasTxt) + '”, ' + esc(a0.diaTxt || 'sem dia') + ', ' + esc(a0.horarioTxt || 'sem horário') + ', ' + esc(a0.prof || 'sem professor') : '') + '</div></div>' +
         '<div class="acoes">' + (it.conflito ? it.issues[0].lados.map(function (l) { return '<button type="button" class="btn sm" data-act="editar" data-ids="' + esc(l.aulaIds.join(',')) + '" data-primary="' + esc(l.aulaIds[0]) + '" title="Editar ' + esc(l.disc) + '">Ajustar “' + esc(l.disc.length > 22 ? l.disc.slice(0, 21) + '…' : l.disc) + '”</button>'; }).join('') : it.conflitoSala ? Array.from(new Map(it.aulas.map(function (a) { return [a.disc + '|' + a.curso, a]; })).values()).map(function (a) { return '<button type="button" class="btn sm" data-act="editar" data-ids="' + esc(a.id) + '" data-primary="' + esc(a.id) + '" title="Editar ' + esc(a.disc) + '">Ajustar “' + esc(a.disc.length > 22 ? a.disc.slice(0, 21) + '…' : a.disc) + '”</button>'; }).join('') : '<button type="button" class="btn sm" data-act="editar" data-ids="' + esc(it.ids.join(',')) + '" data-primary="' + esc(it.ids[0]) + '">Corrigir</button>') + '</div>' +
-        '<ul>' + it.issues.map(function (i) { return '<li><span class="badge ' + i.sev + '">' + (i.sev === 'erro' ? 'Erro' : 'Atenção') + '</span><span>' + esc(i.msg) + (i.dica ? '<small>' + esc(i.dica) + '</small>' : '') + '</span></li>'; }).join('') + '</ul></article>';
+        '<ul>' + it.issues.map(function (i) {
+          const ignorado = !!S.ignorados[sigIssue(i)];
+          return '<li' + (ignorado ? ' class="ignorado"' : '') + '><span class="badge ' + i.sev + '">' + (i.sev === 'erro' ? 'Erro' : 'Atenção') + '</span><span>' + esc(i.msg) + (i.dica ? '<small>' + esc(i.dica) + '</small>' : '') +
+            (ignorado ? '<button type="button" class="linkbtn" data-act="reativar-aviso" data-sig="' + esc(sigIssue(i)) + '">Voltar a avisar</button>' : '<button type="button" class="linkbtn" data-act="ignorar-aviso" data-sig="' + esc(sigIssue(i)) + '" title="Use quando já revisou e decidiu manter assim de propósito">Já revisei, não é erro</button>') +
+            '</span></li>';
+        }).join('') + '</ul></article>';
     }).join('');
     return '<div class="topo"><div><h1>Conferência do calendário</h1><p>' + (itens.length ? plural(itens.length, 'aula precisa', 'aulas precisam') + ' de revisão' + (nErro ? ', ' + plural(nErro, 'com erro que muda a data ou o professor', 'com erros que mudam data ou professor') : '') + '.' : 'Nenhuma pendência' + (V.passado ? '' : ' nas datas de hoje em diante') + '.') + ' A conferência cruza dias da semana, meses, intervalo quinzenal, dias de live, horários e disponibilidade dos professores.</p></div>' +
-      '<div class="acoes"><label class="check"><input type="checkbox" data-chg="passado"' + (V.passado ? ' checked' : '') + '> Incluir datas que já passaram' + (passadas ? ' (' + passadas + ')' : '') + '</label></div></div>' +
+      '<div class="acoes"><label class="check"><input type="checkbox" data-chg="passado"' + (V.passado ? ' checked' : '') + '> Incluir datas que já passaram' + (passadas ? ' (' + passadas + ')' : '') + '</label>' +
+      '<label class="check"><input type="checkbox" data-chg="verIgnorados"' + (V.verIgnorados ? ' checked' : '') + '> Mostrar avisos já revisados' + (ignoradas ? ' (' + ignoradas + ')' : '') + '</label></div></div>' +
       blocoPendencias() + '<div class="pend">' + (lista || '<div class="vazio">Tudo certo por aqui.</div>') + '</div>';
   }
 
@@ -785,10 +824,7 @@
     'copiar-msg': function () { copiar($('#msgTxt').value); },
     'copiar-cad': function (el) { copiar(L.msgCadastro(el.dataset.prof, S.status[el.dataset.prof], S.cfg)); },
     'agenda-prof': function (el) { V.fProf = el.dataset.prof; V.fCurso = ''; location.hash = '#calendario'; },
-    'pdf-prof': function (el) {
-      V.fProf = el.dataset.prof; V.fCurso = ''; V.mes = YM_HOJE; V.view = 'calendario'; location.hash = '#calendario'; render();
-      setTimeout(function () { ACTS['pdf-mes'](); }, 50);
-    },
+    'pdf-prof': function (el) { imprimirListaProf(el.dataset.prof, YM_HOJE); },
     ics: function () { const gs = gruposFiltrados(); if (!gs.length) { toast('Nenhuma aula no filtro atual'); return; } baixar('agenda-polo-1740.ics', L.ics(gs), 'text/calendar;charset=utf-8'); },
     'pdf-mes': function () {
       const nomeArq = 'Calendario ' + nomeMes(V.mes) + (V.fProf && V.fProf !== '__sem' ? ' - ' + V.fProf : V.fCurso ? ' - ' + V.fCurso : '');
@@ -837,6 +873,16 @@
     },
     'usar-publicado': function () { LS.del('rows'); LS.set('rowsBase', DATA.atualizado || ''); S.rows = baseRows(); recalc(); render(); toast('Mostrando o calendário publicado'); },
     'ir-view': function (el) { location.hash = '#' + el.dataset.view; },
+    'ignorar-aviso': function (el) {
+      const sig = el.dataset.sig; S.ignorados[sig] = true; LS.set('ignorados', S.ignorados);
+      registrar('Marcou aviso como revisado', sig.split('|').slice(1).join(' · '));
+      render(); toast('Não vamos mais avisar sobre isso, a não ser que os dados mudem');
+    },
+    'reativar-aviso': function (el) {
+      const sig = el.dataset.sig; delete S.ignorados[sig]; LS.set('ignorados', S.ignorados);
+      registrar('Voltou a avisar sobre um item', sig.split('|').slice(1).join(' · '));
+      render(); toast('Aviso reativado');
+    },
     'manter-rascunho': function () { LS.set('rowsBase', DATA.atualizado || ''); render(); }
   };
   const CHG = {
@@ -844,6 +890,7 @@
     fProf: function (el) { V.fProf = el.value; render(); },
     passado: function (el) { V.passado = el.checked; render(); },
     pratPassado: function (el) { V.pratPassado = el.checked; render(); },
+    verIgnorados: function (el) { V.verIgnorados = el.checked; render(); },
     status: function (el) { const p = el.dataset.prof, k = el.dataset.k; S.status[p] = S.status[p] || {}; S.status[p][k] = el.checked; LS.set('status', S.status); render(); const n = $('input[data-chg="status"][data-prof="' + CSS.escape(p) + '"][data-k="' + k + '"]'); if (n) n.focus(); },
     tarefa: function (el) { const id = el.dataset.id; S.tarefas[id] = el.checked; LS.set('tarefas', S.tarefas); render(); const n = $('input[data-chg="tarefa"][data-id="' + CSS.escape(id) + '"]'); if (n) n.focus(); },
     'pend-feito': function (el) { const p = S.pend.find(function (x) { return x.id === el.dataset.id; }); if (!p) return; p.feito = el.checked; LS.set('pend', S.pend); if (el.checked) registrar('Resolveu pendência', p.titulo); render(); const n = $('input[data-chg="pend-feito"][data-id="' + CSS.escape(p.id) + '"]'); if (n) n.focus(); },

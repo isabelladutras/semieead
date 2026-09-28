@@ -183,8 +183,11 @@ select.inline { width: auto; }
 .pitem h3 { font-size: 1rem; }
 .pitem .meta { color: var(--ink-2); font-size: 0.8125rem; }
 .pitem ul { grid-column: 1 / -1; margin: 0.2rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.35rem; }
-.pitem li { display: flex; gap: 0.5rem; align-items: baseline; }
-.pitem li small { color: var(--ink-3); display: block; }
+.pitem li { display: flex; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; }
+.pitem li small { color: var(--ink-3); display: block; flex-basis: 100%; }
+.pitem li .linkbtn { font-size: 0.8125rem; font-weight: 500; }
+.pitem li.ignorado { opacity: 0.6; }
+.pitem li.ignorado .badge { text-decoration: line-through; }
 
 /* Rotina */
 .linha-tempo { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.7rem; }
@@ -268,6 +271,18 @@ dl.info dd { margin: 0; }
   .mes { break-inside: avoid; }
   .dia { break-inside: avoid; }
   .legenda .linkbtn { display: none; }
+}
+#impressao-prof { display: none; }
+body.imprimindo-lista #app, body.imprimindo-lista .rail { display: none !important; }
+body.imprimindo-lista #impressao-prof { display: block; }
+#impressao-prof h1 { font-size: 1.2rem; margin: 0 0 0.8rem; }
+.lista-impressao { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.lista-impressao th, .lista-impressao td { border: 1px solid #999; padding: 0.35rem 0.5rem; text-align: left; }
+.lista-impressao th { background: #eee; }
+@media print {
+  body:not(.imprimindo-lista) #impressao-prof { display: none; }
+  body.imprimindo-lista #impressao-prof { display: block; }
+  body.imprimindo-lista .lista-impressao tr { break-inside: avoid; }
 }
 
 /* ---------- Decisões pendentes e Práticas EAD ---------- */
