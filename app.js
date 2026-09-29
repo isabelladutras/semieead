@@ -317,6 +317,13 @@
       const cursos = Array.from(new Set([].concat.apply([], gs.map(function (g) { return g.cursosCurto; }))));
       const gsMes = gs.filter(function (g) { return g.iso.slice(0, 7) === YM_HOJE; });
       const evid = linksEvidenciasProf(p, gsMes);
+      const mesesProf = Array.from(new Set(gs.map(function (g) { return g.iso.slice(0, 7); }))).sort();
+      const mesPadraoPdf = mesesProf.indexOf(YM_HOJE) >= 0 ? YM_HOJE : (mesesProf.filter(function (m) { return m >= YM_HOJE; })[0] || mesesProf[mesesProf.length - 1] || YM_HOJE);
+      const selMesPdf = mesesProf.length > 1
+        ? '<select class="sel-mes-pdf" aria-label="Mês do calendário em PDF" data-prof="' + esc(p) + '">' + mesesProf.map(function (m) {
+          return '<option value="' + m + '"' + (m === mesPadraoPdf ? ' selected' : '') + '>' + esc(nomeMes(m)).replace(/^./, function (c) { return c.toUpperCase(); }) + '</option>';
+        }).join('') + '</select>'
+        : '';
       const st = S.status[p] || {}, t = tel(p), completos = CHECKS.filter(function (c) { return st[c[0]]; }).length;
       const msg = L.msgCadastro(p, st, S.cfg);
       return '<article class="pcard" style="--c:' + corProf(p) + '"><header><div><h3>' + esc(p) + '</h3><div class="fone">' + (t ? esc(t) : 'Sem telefone cadastrado') + '</div></div>' +
@@ -329,7 +336,7 @@
         '<div class="rod"><a class="btn sm primario' + (t ? '' : '" aria-disabled="true') + '" ' + (t ? 'href="' + esc(L.waUrl(t, msg)) + '" target="_blank" rel="noopener"' : '') + '>Cobrar cadastro no WhatsApp</a>' +
         '<button type="button" class="btn sm" data-act="copiar-cad" data-prof="' + esc(p) + '">Copiar mensagem</button>' +
         '<button type="button" class="btn sm" data-act="agenda-prof" data-prof="' + esc(p) + '">Ver agenda</button>' +
-        '<button type="button" class="btn sm" data-act="pdf-prof" data-prof="' + esc(p) + '">Calendário do mês em PDF</button>' + evid + '</div></article>';
+        selMesPdf + '<button type="button" class="btn sm" data-act="pdf-prof" data-prof="' + esc(p) + '" data-ym-padrao="' + esc(mesPadraoPdf) + '">Calendário do mês em PDF</button>' + evid + '</div></article>';
     }).join('');
     const meses = Array.from(new Set(D.grupos.map(function (g) { return g.iso.slice(0, 7); }))).sort();
     const linhas = D.profs.concat(['']).map(function (p) {
@@ -1032,7 +1039,10 @@
     'copiar-msg': function () { copiar($('#msgTxt').value); },
     'copiar-cad': function (el) { copiar(L.msgCadastro(el.dataset.prof, S.status[el.dataset.prof], S.cfg)); },
     'agenda-prof': function (el) { V.fProf = el.dataset.prof; V.fCurso = ''; location.hash = '#calendario'; },
-    'pdf-prof': function (el) { imprimirListaProf(el.dataset.prof, YM_HOJE); },
+    'pdf-prof': function (el) {
+      const sel = el.parentElement && el.parentElement.querySelector('.sel-mes-pdf[data-prof="' + el.dataset.prof.replace(/"/g, '\\"') + '"]');
+      imprimirListaProf(el.dataset.prof, (sel && sel.value) || el.dataset.ymPadrao || YM_HOJE);
+    },
     ics: function () { const gs = gruposFiltrados(); if (!gs.length) { toast('Nenhuma aula no filtro atual'); return; } baixar('agenda-polo-1740.ics', L.ics(gs), 'text/calendar;charset=utf-8'); },
     'pdf-mes': function () {
       const nomeArq = 'Calendario ' + nomeMes(V.mes) + (V.fProf && V.fProf !== '__sem' ? ' - ' + V.fProf : V.fCurso ? ' - ' + V.fCurso : '');
