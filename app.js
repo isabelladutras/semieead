@@ -154,6 +154,9 @@
   function abrirDlg(html) { const d = $('#dlg'); d.innerHTML = html; if (!d.open) { if (d.showModal) d.showModal(); else d.setAttribute('open', ''); } }
   function fecharDlg() { const d = $('#dlg'); if (d.open) { if (d.close) d.close(); else d.removeAttribute('open'); } }
   const nomeMes = function (ym) { const p = ym.split('-'); return L.MESES[Number(p[1]) - 1] + ' de ' + p[0]; };
+  // Se por acaso subir um app.js mais novo que o logic.js (upload parcial no GitHub), evita que
+  // o calendário/semana quebrem por causa de uma função nova que o logic.js antigo ainda não tem.
+  const juntarCursos = function (lista) { return typeof L.juntarNatural === 'function' ? L.juntarNatural(lista) : (lista || []).join(', '); };
   const somaMes = function (ym, n) { const p = ym.split('-').map(Number); const d = new Date(p[0], p[1] - 1 + n, 1); return d.getFullYear() + '-' + L.pad(d.getMonth() + 1); };
   const tel = function (nome) { return S.contatos[nome] || ''; };
 
@@ -251,7 +254,7 @@
         return '<li><span class="quando">' + (p.fim ? Number(p.iso.slice(8)) + '–' + Number(p.fim.slice(8)) : Number(p.iso.slice(8))) + '/' + p.iso.slice(5, 7) + '</span><span class="t">' + esc(p.titulo) + '<small>' + esc(quandoTxt(p.iso <= HOJE ? HOJE : p.iso)) + '</small></span></li>';
       }).join('') + '</ul><p style="margin-top:.7rem"><a href="#rotina">Rotina do mês</a></p></section>' +
       '<section class="bloco"><h2>Lembretes</h2>' + lembretesPratHtml() + (lem.length ? '<ul class="itens">' + lem.map(function (l) {
-        return '<li><span class="quando">' + esc(l.quando) + '</span><span class="t"><button type="button" class="linkbtn" data-act="grupo" data-key="' + esc(l.grupo.key) + '">' + esc(l.texto) + '</button><small>' + esc(l.grupo.disc) + ' · ' + esc(L.juntarNatural(l.grupo.cursosCurto)) + '</small></span></li>';
+        return '<li><span class="quando">' + esc(l.quando) + '</span><span class="t"><button type="button" class="linkbtn" data-act="grupo" data-key="' + esc(l.grupo.key) + '">' + esc(l.texto) + '</button><small>' + esc(l.grupo.disc) + ' · ' + esc(juntarCursos(l.grupo.cursosCurto)) + '</small></span></li>';
       }).join('') + '</ul>' : (lembretesPratHtml() ? '' : '<p class="muted">Nada para lembrar nos próximos dias.</p>')) + '</section></div>';
 
     return '<div class="topo"><div><h1>Semana de ' + rotuloSemana(ini) + '</h1><p>' + esc(resumo) + '</p></div>' +
@@ -282,7 +285,7 @@
       const d = L.addDays(inicio, i), lista = porDia[d] || [], dentro = d.slice(0, 7) === V.mes;
       cel += '<button type="button" class="dia' + (dentro ? '' : ' fora') + (d === HOJE ? ' hoje' : '') + (errosPorDia[d] ? ' issue' : '') + '" data-act="dia" data-iso="' + d + '" aria-label="' + esc(L.fmtLonga(d)) + ', ' + plural(lista.length, 'aula', 'aulas') + '">' +
         '<span class="num">' + Number(d.slice(8)) + '</span>' +
-        lista.slice(0, 3).map(function (g) { return '<span class="ch" style="--c:' + corProf(g.prof) + '" title="' + esc(g.disc + ' · ' + g.coortes.join(', ') + (g.sala ? ' · ' + g.sala : '')) + '">' + esc(L.hhmm(g.ini) + ' ' + L.juntarNatural(g.cursosCurto)) + ' <b class="mini-coorte">' + esc(g.coortes.join('/')) + '</b></span>'; }).join('') +
+        lista.slice(0, 3).map(function (g) { return '<span class="ch" style="--c:' + corProf(g.prof) + '" title="' + esc(g.disc + ' · ' + g.coortes.join(', ') + (g.sala ? ' · ' + g.sala : '')) + '">' + esc(L.hhmm(g.ini) + ' ' + juntarCursos(g.cursosCurto)) + ' <b class="mini-coorte">' + esc(g.coortes.join('/')) + '</b></span>'; }).join('') +
         (lista.length > 3 ? '<span class="mais">+' + (lista.length - 3) + '</span>' : '') +
         '<span class="pontos">' + lista.map(function (g) { return '<i style="--c:' + corProf(g.prof) + '"></i>'; }).join('') + '</span></button>';
     }
@@ -663,7 +666,7 @@
       const texto = L.norm([g.disc, g.cursos.join(' '), g.prof || '', g.sala || '', g.coortes.join(' ')].join(' '));
       if (texto.indexOf(q) < 0) return;
       vistosGrupo[g.key] = 1;
-      out.push({ tipo: 'Aula', titulo: g.disc, sub: L.juntarNatural(g.cursos) + ' · ' + L.fmtCurta(g.iso) + (g.prof ? ' · ' + g.prof : '') + (g.sala ? ' · ' + g.sala : ''), act: 'grupo', key: g.key });
+      out.push({ tipo: 'Aula', titulo: g.disc, sub: juntarCursos(g.cursos) + ' · ' + L.fmtCurta(g.iso) + (g.prof ? ' · ' + g.prof : '') + (g.sala ? ' · ' + g.sala : ''), act: 'grupo', key: g.key });
     });
     S.pend.forEach(function (p) {
       const texto = L.norm([p.titulo, p.detalhe || ''].join(' '));
