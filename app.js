@@ -8,7 +8,7 @@
 
   /* ---------- Armazenamento local (por navegador) + sincronização opcional entre navegadores ---------- */
   const Sync = window.Sync || { configured: function () { return false; }, init: function () {}, push: function () { return Promise.resolve(false); } };
-  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log', 'pratItens', 'ignorados'];
+  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log', 'pratItens', 'ignorados', 'ocorrencias', 'estoque', 'afazeres'];
   const LS = {
     get: function (k, def) { try { const v = localStorage.getItem('sp1740.' + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } },
     set: function (k, v) {
@@ -39,9 +39,12 @@
     turmaCfg: LS.get('turmaCfg', {}),
     log: LS.get('log', []),
     pratItens: LS.get('pratItens', null) || basePratItens(),
-    ignorados: LS.get('ignorados', {})
+    ignorados: LS.get('ignorados', {}),
+    ocorrencias: LS.get('ocorrencias', []),
+    estoque: LS.get('estoque', []),
+    afazeres: LS.get('afazeres', [])
   };
-  const V = { view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
+  const V = { view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorResolvidas: false, afazerFeitas: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
   const D = {};
 
   const PROF_CORES = { Marcelo: '#2454c5', Marcos: '#c2410c', Michele: '#b0245a', Olavo: '#6b3fc4', Rafael: '#0e7490', Vitor: '#4d7c0f', 'Fabrício': '#7a6f5b' };
@@ -65,7 +68,7 @@
     D.cursos = Array.from(new Set(D.aulas.map(function (a) { return a.curso; }))).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
   }
   const sevGrupo = function (g) { let s = ''; g.aulaIds.forEach(function (id) { if (D.sevAula[id] === 'erro') s = 'erro'; else if (D.sevAula[id] && !s) s = 'atencao'; }); return s; };
-  const issuesFuturas = function (sev) { return D.issues.filter(function (i) { return i.fim >= HOJE && (!sev || i.sev === sev); }); };
+  const issuesFuturas = function (sev) { return D.issues.filter(function (i) { return i.fim >= HOJE && (!sev || i.sev === sev) && !S.ignorados[sigIssue(i)]; }); };
   function persistir() { LS.set('rows', S.rows); LS.set('rowsBase', DATA.atualizado || ''); recalc(); }
 
   /* ---------- Registro de quem mudou o quê ---------- */
@@ -104,11 +107,23 @@
     praticas: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 14h9"/>',
     guia: '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5V4.5"/>',
     dados: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
-    buscar: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>'
+    buscar: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+    permanencia: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="m9 12 2 2 4-4"/>',
+    linksUteis: '<path d="M10 14a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0L5.7 12.6a4 4 0 0 0 5.7 5.7l1-1"/>',
+    ocorrencias: '<path d="M12 9v4M12 16.5v.01"/><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+    estoque: '<path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>',
+    afazeres: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="m8 15 2.5 2.5L16 12"/>'
   };
   const VIEWS = [
     { id: 'semana', nome: 'Semana' }, { id: 'calendario', nome: 'Calendário' }, { id: 'professores', nome: 'Professores' },
-    { id: 'conferencia', nome: 'Conferência' }, { id: 'rotina', nome: 'Rotina do mês' }, { id: 'praticas', nome: 'Práticas EAD' }, { id: 'buscar', nome: 'Buscar' }, { id: 'guia', nome: 'Guia rápido' }, { id: 'dados', nome: 'Dados' }
+    { id: 'conferencia', nome: 'Conferência' }, { id: 'rotina', nome: 'Rotina do mês' }, { id: 'praticas', nome: 'Práticas EAD' },
+    { id: 'ocorrencias', nome: 'Ocorrências' }, { id: 'estoque', nome: 'Estoque' }, { id: 'afazeres', nome: 'Tarefas' },
+    { id: 'buscar', nome: 'Buscar' }, { id: 'guia', nome: 'Guia rápido' }, { id: 'dados', nome: 'Dados' }
+  ];
+  // Links externos fixos do dia a dia da coordenação (abrem em outra aba; não fazem parte da navegação por hash).
+  const EXT_LINKS = [
+    { id: 'permanencia', nome: 'Permanência', url: L.LINKS.permanencia },
+    { id: 'linksUteis', nome: 'Links úteis', url: L.LINKS.linksUteis }
   ];
   function svg(id) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[id] + '</svg>'; }
 
@@ -284,10 +299,24 @@
 
   /* ---------- Professores ---------- */
   const CHECKS = [['indicacao', 'Indicação de tutor enviada'], ['prestador', 'Cadastro de prestador (DP)'], ['mentor', 'Cadastro no Mentor'], ['capacitado', 'Capacitado']];
+  function linksEvidenciasProf(p, gsMes) {
+    const mapa = DATA.evidenciasDrive || {}, ano = Number(YM_HOJE.slice(0, 4)), mesNum = Number(YM_HOJE.slice(5));
+    const vistos = {};
+    return gsMes.map(function (g) {
+      const aulasDoGrupo = g.aulaIds.map(function (id) { return D.porId[id]; });
+      return aulasDoGrupo.map(function (a) {
+        if (vistos[a.curso]) return ''; vistos[a.curso] = 1;
+        const url = L.urlEvidencias(mapa, a.curso, p, mesNum, ano, a.fase) || L.DRIVE_RAIZ;
+        return '<a class="btn sm" href="' + esc(url) + '" target="_blank" rel="noopener" title="Pasta de evidências de ' + esc(a.cursoCurto) + ' em ' + esc(nomeMes(YM_HOJE)) + '">Evidências ' + esc(a.cursoCurto) + '</a>';
+      }).join('');
+    }).join('');
+  }
   function viewProfessores() {
     const cards = D.profs.map(function (p) {
       const gs = D.grupos.filter(function (g) { return g.prof === p; }), fut = gs.filter(function (g) { return g.iso >= HOJE; }), prox = fut[0];
       const cursos = Array.from(new Set([].concat.apply([], gs.map(function (g) { return g.cursosCurto; }))));
+      const gsMes = gs.filter(function (g) { return g.iso.slice(0, 7) === YM_HOJE; });
+      const evid = linksEvidenciasProf(p, gsMes);
       const st = S.status[p] || {}, t = tel(p), completos = CHECKS.filter(function (c) { return st[c[0]]; }).length;
       const msg = L.msgCadastro(p, st, S.cfg);
       return '<article class="pcard" style="--c:' + corProf(p) + '"><header><div><h3>' + esc(p) + '</h3><div class="fone">' + (t ? esc(t) : 'Sem telefone cadastrado') + '</div></div>' +
@@ -300,7 +329,7 @@
         '<div class="rod"><a class="btn sm primario' + (t ? '' : '" aria-disabled="true') + '" ' + (t ? 'href="' + esc(L.waUrl(t, msg)) + '" target="_blank" rel="noopener"' : '') + '>Cobrar cadastro no WhatsApp</a>' +
         '<button type="button" class="btn sm" data-act="copiar-cad" data-prof="' + esc(p) + '">Copiar mensagem</button>' +
         '<button type="button" class="btn sm" data-act="agenda-prof" data-prof="' + esc(p) + '">Ver agenda</button>' +
-        '<button type="button" class="btn sm" data-act="pdf-prof" data-prof="' + esc(p) + '">Calendário do mês em PDF</button></div></article>';
+        '<button type="button" class="btn sm" data-act="pdf-prof" data-prof="' + esc(p) + '">Calendário do mês em PDF</button>' + evid + '</div></article>';
     }).join('');
     const meses = Array.from(new Set(D.grupos.map(function (g) { return g.iso.slice(0, 7); }))).sort();
     const linhas = D.profs.concat(['']).map(function (p) {
@@ -389,6 +418,158 @@
       '<div class="prats">' + (cards || '<p class="muted small">Nenhuma prática futura cadastrada.</p>') + '</div>' +
       '<section class="bloco" style="margin-top:1.2rem"><h2>Depois de cada aula</h2><p class="muted small">O professor envia as evidências pelo formulário da UniFECAF:</p><ul>' + P.evidencias.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul>' +
       '<p class="muted small" style="margin-top:.6rem">Formulário de experiência do aluno (o mesmo para todas as práticas): <a href="' + esc(P.formExperiencia) + '" target="_blank" rel="noopener">abrir</a> · Grupo de tutores no WhatsApp: <a href="' + esc(P.whatsappTutores) + '" target="_blank" rel="noopener">entrar</a></p></section>';
+  }
+
+  /* ---------- Ocorrências de alunos ---------- */
+  const OCOR_CATEGORIAS = ['Alterações Cadastrais', 'Alterações Financeiras', 'Análise Curricular', 'Análise Documental', 'Cobrança', 'Cancelamento', 'Lançamento de notas', 'Transferência de Polo', 'Mudança de Eixo', 'Outros Acadêmico'];
+  const OCOR_RESPONSAVEIS = ['Resolvido', 'P. Aluno', 'P. Aline', 'P. Naiane', 'P. Suporte Acadêmico', 'P. Suporte Financeiro', 'P. Gerência FECAF', 'P. Gerência F5'];
+  function viewOcorrencias() {
+    const todas = S.ocorrencias || [];
+    const abertas = todas.filter(function (o) { return o.responsavel !== 'Resolvido'; });
+    const visiveis = (V.ocorResolvidas ? todas : abertas).slice().sort(function (a, b) {
+      const pa = a.prazo || '9999-99-99', pb = b.prazo || '9999-99-99';
+      return (a.responsavel === 'Resolvido' ? 1 : 0) - (b.responsavel === 'Resolvido' ? 1 : 0) || (pa < pb ? -1 : pa > pb ? 1 : 0);
+    });
+    const resp = '<option value="">Escolher</option>' + OCOR_RESPONSAVEIS.map(function (r) { return '<option value="' + esc(r) + '">' + esc(r) + '</option>'; }).join('');
+    const cards = visiveis.map(function (o) {
+      const atrasada = o.responsavel !== 'Resolvido' && o.prazo && o.prazo < HOJE;
+      const sev = o.responsavel === 'Resolvido' ? 'ok' : (atrasada ? 'erro' : 'atencao');
+      return '<article class="pitem ' + sev + '"><div><h3>' + esc(o.aluno || 'Sem nome') + (o.ra ? ' <small class="muted">RA ' + esc(o.ra) + '</small>' : '') + '</h3>' +
+        '<div class="meta">' + esc(o.categoria || 'Sem categoria') + (o.dataOcorrencia ? ' · aberta em ' + esc(L.fmtCurta(o.dataOcorrencia)) : '') + (o.prazo ? ' · prazo ' + esc(L.fmtCurta(o.prazo)) + (atrasada ? ' (atrasado)' : '') : '') + (o.solucaoEm ? ' · resolvida em ' + esc(L.fmtCurta(o.solucaoEm)) : '') + '</div>' +
+        (o.evento ? '<p class="small" style="margin:.4rem 0 0">' + esc(o.evento) + '</p>' : '') + '</div>' +
+        '<div class="acoes"><select data-chg="ocor-resp" data-id="' + esc(o.id) + '" aria-label="Responsável">' + resp.replace('value="' + esc(o.responsavel || '') + '"', 'value="' + esc(o.responsavel || '') + '" selected') + '</select>' +
+        '<button type="button" class="btn sm" data-act="editar-ocorrencia" data-id="' + esc(o.id) + '">Editar</button></div></article>';
+    }).join('');
+    return '<div class="topo"><div><h1>Ocorrências de alunos</h1><p>Registro de solicitações e problemas de alunos em andamento: quem está tratando, prazo e o que já foi feito.</p></div>' +
+      '<div class="acoes nav-sem"><button type="button" class="btn primario" data-act="nova-ocorrencia">Nova ocorrência</button></div></div>' +
+      '<div class="acoes"><label class="check"><input type="checkbox" data-chg="ocorResolvidas"' + (V.ocorResolvidas ? ' checked' : '') + '> Mostrar resolvidas' + (todas.length - abertas.length ? ' (' + (todas.length - abertas.length) + ')' : '') + '</label></div>' +
+      '<div class="pend">' + (cards || '<div class="vazio">Nenhuma ocorrência em aberto.</div>') + '</div>';
+  }
+  function abrirEditarOcorrencia(id) {
+    const novo = !id, o = novo ? null : S.ocorrencias.find(function (x) { return x.id === id; });
+    if (!novo && !o) return;
+    abrirDlg(cabDlg(novo ? 'Nova ocorrência' : 'Editar ocorrência', '') +
+      '<div class="corpo" data-id="' + esc(id || '') + '" id="form-ocor"><div class="campos">' +
+      '<div class="largo"><label for="o-aluno">Aluno</label><input type="text" id="o-aluno" value="' + esc(o ? o.aluno : '') + '"></div>' +
+      '<div><label for="o-ra">RA</label><input type="text" id="o-ra" value="' + esc(o ? o.ra : '') + '"></div>' +
+      '<div><label for="o-cat">Categoria</label><select id="o-cat"><option value="">Escolher</option>' + OCOR_CATEGORIAS.map(function (c) { return '<option' + (o && o.categoria === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
+      '<div><label for="o-resp">Responsável</label><select id="o-resp"><option value="">Escolher</option>' + OCOR_RESPONSAVEIS.map(function (r) { return '<option' + (o && o.responsavel === r ? ' selected' : '') + '>' + esc(r) + '</option>'; }).join('') + '</select></div>' +
+      '<div><label for="o-data">Data da ocorrência</label><input type="date" id="o-data" value="' + esc(o ? o.dataOcorrencia : '') + '"></div>' +
+      '<div><label for="o-prazo">Prazo</label><input type="date" id="o-prazo" value="' + esc(o ? o.prazo : '') + '"></div>' +
+      '<div><label for="o-sol">Solução em</label><input type="date" id="o-sol" value="' + esc(o ? o.solucaoEm : '') + '"></div>' +
+      '<div class="largo"><label for="o-evento">O que aconteceu / andamento</label><textarea id="o-evento" style="min-height:5rem">' + esc(o ? o.evento : '') + '</textarea></div>' +
+      '</div></div>' +
+      '<footer><button type="button" class="btn primario" data-act="salvar-ocorrencia">Salvar</button>' + (novo ? '' : '<button type="button" class="btn perigo" data-act="excluir-ocorrencia">Excluir</button>') + '<button type="button" class="btn fim" data-act="fechar">Cancelar</button></footer>');
+  }
+  function salvarOcorrencia() {
+    const f = $('#form-ocor'); if (!f) return;
+    const id = f.dataset.id, novo = !id;
+    const aluno = $('#o-aluno').value.trim(); if (!aluno) { toast('Informe o nome do aluno'); return; }
+    const campos = {
+      aluno: aluno, ra: $('#o-ra').value.trim(), categoria: $('#o-cat').value, responsavel: $('#o-resp').value,
+      dataOcorrencia: $('#o-data').value, prazo: $('#o-prazo').value, solucaoEm: $('#o-sol').value, evento: $('#o-evento').value.trim()
+    };
+    if (novo) { S.ocorrencias.push(Object.assign({ id: 'o' + Date.now().toString(36) }, campos)); }
+    else { const o = S.ocorrencias.find(function (x) { return x.id === id; }); if (o) Object.assign(o, campos); }
+    LS.set('ocorrencias', S.ocorrencias);
+    registrar(novo ? 'Criou ocorrência' : 'Editou ocorrência', aluno);
+    fecharDlg(); render(); toast('Ocorrência salva' + (Sync.configured() ? '' : ' neste navegador'));
+  }
+
+  /* ---------- Estoque ---------- */
+  const ESTOQUE_CATEGORIAS = ['Escritório', 'Cozinha', 'Limpeza', 'Manutenção', 'Papelaria', 'Outro'];
+  function viewEstoque() {
+    const todos = S.estoque || [];
+    const comprar = todos.filter(function (i) { return i.comprar; }).length;
+    const grupos = ESTOQUE_CATEGORIAS.map(function (cat) {
+      const itens = todos.filter(function (i) { return (i.categoria || 'Outro') === cat; });
+      if (!itens.length) return '';
+      const linhas = itens.map(function (i) {
+        return '<tr' + (i.comprar ? ' class="risco"' : '') + '><td><label class="check"><input type="checkbox" data-chg="estoque-comprar" data-id="' + esc(i.id) + '"' + (i.comprar ? ' checked' : '') + '>' + esc(i.item) + '</label></td>' +
+          '<td class="num">' + (i.qtd != null && i.qtd !== '' ? esc(String(i.qtd)) : '—') + '</td>' +
+          '<td>' + esc(i.fornecedor || '') + '</td><td>' + (i.preco != null && i.preco !== '' ? 'R$ ' + esc(String(i.preco)) : '') + '</td>' +
+          '<td>' + esc(i.obs || '') + '</td>' +
+          '<td><button type="button" class="btn sm" data-act="editar-estoque" data-id="' + esc(i.id) + '">Editar</button></td></tr>';
+      }).join('');
+      return '<section class="bloco" style="margin-bottom:1rem"><h2>' + esc(cat) + '</h2><div class="rolagem"><table class="tabela"><thead><tr><th>Item</th><th class="num">Qtd.</th><th>Fornecedor</th><th>Preço</th><th>Observação</th><th></th></tr></thead><tbody>' + linhas + '</tbody></table></div></section>';
+    }).join('');
+    return '<div class="topo"><div><h1>Estoque e compras</h1><p>Itens de escritório, cozinha, limpeza, papelaria e manutenção do polo. Marque "Precisa comprar" para não esquecer.</p></div>' +
+      '<div class="acoes nav-sem"><button type="button" class="btn primario" data-act="novo-estoque">Novo item</button></div></div>' +
+      (comprar ? '<p class="aviso"><b>' + plural(comprar, 'item', 'itens') + '</b> marcado' + (comprar === 1 ? '' : 's') + ' para comprar.</p>' : '') +
+      (grupos || '<div class="vazio">Nenhum item cadastrado ainda.</div>');
+  }
+  function abrirEditarEstoque(id) {
+    const novo = !id, i = novo ? null : S.estoque.find(function (x) { return x.id === id; });
+    if (!novo && !i) return;
+    abrirDlg(cabDlg(novo ? 'Novo item de estoque' : 'Editar item', '') +
+      '<div class="corpo" data-id="' + esc(id || '') + '" id="form-estoque"><div class="campos">' +
+      '<div class="largo"><label for="es-item">Item</label><input type="text" id="es-item" value="' + esc(i ? i.item : '') + '"></div>' +
+      '<div><label for="es-cat">Categoria</label><select id="es-cat">' + ESTOQUE_CATEGORIAS.map(function (c) { return '<option' + (i && i.categoria === c || (!i && c === 'Outro') ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
+      '<div><label for="es-qtd">Quantidade atual</label><input type="number" id="es-qtd" min="0" step="1" value="' + esc(i && i.qtd != null ? i.qtd : '') + '"></div>' +
+      '<div><label for="es-fornecedor">Fornecedor</label><input type="text" id="es-fornecedor" value="' + esc(i ? i.fornecedor : '') + '"></div>' +
+      '<div><label for="es-preco">Preço (R$)</label><input type="number" id="es-preco" min="0" step="0.01" value="' + esc(i && i.preco != null ? i.preco : '') + '"></div>' +
+      '<div class="largo"><label for="es-obs">Observação</label><input type="text" id="es-obs" value="' + esc(i ? i.obs : '') + '"></div>' +
+      '<label class="check"><input type="checkbox" id="es-comprar"' + (i && i.comprar ? ' checked' : '') + '> Precisa comprar</label>' +
+      '</div></div>' +
+      '<footer><button type="button" class="btn primario" data-act="salvar-estoque">Salvar</button>' + (novo ? '' : '<button type="button" class="btn perigo" data-act="excluir-estoque">Excluir</button>') + '<button type="button" class="btn fim" data-act="fechar">Cancelar</button></footer>');
+  }
+  function salvarEstoque() {
+    const f = $('#form-estoque'); if (!f) return;
+    const id = f.dataset.id, novo = !id;
+    const item = $('#es-item').value.trim(); if (!item) { toast('Informe o item'); return; }
+    const campos = {
+      item: item, categoria: $('#es-cat').value, qtd: $('#es-qtd').value === '' ? null : Number($('#es-qtd').value),
+      fornecedor: $('#es-fornecedor').value.trim(), preco: $('#es-preco').value === '' ? null : Number($('#es-preco').value),
+      obs: $('#es-obs').value.trim(), comprar: $('#es-comprar').checked
+    };
+    if (novo) { S.estoque.push(Object.assign({ id: 'e' + Date.now().toString(36) }, campos)); }
+    else { const i = S.estoque.find(function (x) { return x.id === id; }); if (i) Object.assign(i, campos); }
+    LS.set('estoque', S.estoque);
+    registrar(novo ? 'Criou item de estoque' : 'Editou item de estoque', item);
+    fecharDlg(); render(); toast('Item salvo' + (Sync.configured() ? '' : ' neste navegador'));
+  }
+
+  /* ---------- Tarefas administrativas (afazeres) ---------- */
+  function viewAfazeres() {
+    const todas = S.afazeres || [];
+    const abertas = todas.filter(function (t) { return !t.feito; });
+    const visiveis = (V.afazerFeitas ? todas : abertas).slice().sort(function (a, b) {
+      const pa = a.prazo || a.data || '9999-99-99', pb = b.prazo || b.data || '9999-99-99';
+      return (a.feito ? 1 : 0) - (b.feito ? 1 : 0) || (pa < pb ? -1 : pa > pb ? 1 : 0);
+    });
+    const linhas = visiveis.map(function (t) {
+      const atrasada = !t.feito && t.prazo && t.prazo < HOJE;
+      return '<li class="dec-item' + (t.feito ? ' feito' : '') + '"><label class="check"><input type="checkbox" data-chg="afazer-feito" data-id="' + esc(t.id) + '"' + (t.feito ? ' checked' : '') + '><span><b>' + esc(t.demanda) + '</b><small>' + (t.responsavel ? esc(t.responsavel) + ' · ' : '') + (t.data ? 'a partir de ' + esc(L.fmtCurta(t.data)) + ' · ' : '') + (t.prazo ? 'prazo ' + esc(L.fmtCurta(t.prazo)) + (atrasada ? ' (atrasado)' : '') : 'sem prazo') + '</small></span></label>' +
+        '<button type="button" class="btn sm" data-act="editar-afazer" data-id="' + esc(t.id) + '">Editar</button></li>';
+    }).join('');
+    return '<div class="topo"><div><h1>Tarefas administrativas</h1><p>Lista contínua de demandas da unidade (eventos, matrículas, organização) — sem precisar recriar a lista todo mês.</p></div>' +
+      '<div class="acoes nav-sem"><button type="button" class="btn primario" data-act="novo-afazer">Nova tarefa</button></div></div>' +
+      '<div class="acoes"><label class="check"><input type="checkbox" data-chg="afazerFeitas"' + (V.afazerFeitas ? ' checked' : '') + '> Mostrar concluídas' + (todas.length - abertas.length ? ' (' + (todas.length - abertas.length) + ')' : '') + '</label></div>' +
+      (linhas ? '<ul class="decs">' + linhas + '</ul>' : '<div class="vazio">Nenhuma tarefa em aberto.</div>');
+  }
+  function abrirEditarAfazer(id) {
+    const novo = !id, t = novo ? null : S.afazeres.find(function (x) { return x.id === id; });
+    if (!novo && !t) return;
+    abrirDlg(cabDlg(novo ? 'Nova tarefa' : 'Editar tarefa', '') +
+      '<div class="corpo" data-id="' + esc(id || '') + '" id="form-afazer"><div class="campos">' +
+      '<div class="largo"><label for="t-demanda">Demanda</label><input type="text" id="t-demanda" value="' + esc(t ? t.demanda : '') + '"></div>' +
+      '<div><label for="t-resp">Responsável</label><input type="text" id="t-resp" value="' + esc(t ? t.responsavel : '') + '"></div>' +
+      '<div><label for="t-data">Data</label><input type="date" id="t-data" value="' + esc(t ? t.data : '') + '"></div>' +
+      '<div><label for="t-prazo">Prazo</label><input type="date" id="t-prazo" value="' + esc(t ? t.prazo : '') + '"></div>' +
+      (novo ? '' : '<label class="check"><input type="checkbox" id="t-feito"' + (t && t.feito ? ' checked' : '') + '> Concluída</label>') +
+      '</div></div>' +
+      '<footer><button type="button" class="btn primario" data-act="salvar-afazer">Salvar</button>' + (novo ? '' : '<button type="button" class="btn perigo" data-act="excluir-afazer">Excluir</button>') + '<button type="button" class="btn fim" data-act="fechar">Cancelar</button></footer>');
+  }
+  function salvarAfazer() {
+    const f = $('#form-afazer'); if (!f) return;
+    const id = f.dataset.id, novo = !id;
+    const demanda = $('#t-demanda').value.trim(); if (!demanda) { toast('Informe a demanda'); return; }
+    const campos = { demanda: demanda, responsavel: $('#t-resp').value.trim(), data: $('#t-data').value, prazo: $('#t-prazo').value };
+    if (novo) { S.afazeres.push(Object.assign({ id: 't' + Date.now().toString(36), feito: false }, campos)); }
+    else { const t = S.afazeres.find(function (x) { return x.id === id; }); if (t) { Object.assign(t, campos); const chk = $('#t-feito'); if (chk) t.feito = chk.checked; } }
+    LS.set('afazeres', S.afazeres);
+    registrar(novo ? 'Criou tarefa' : 'Editou tarefa', demanda);
+    fecharDlg(); render(); toast('Tarefa salva' + (Sync.configured() ? '' : ' neste navegador'));
   }
 
   /* ---------- Conferência ---------- */
@@ -490,6 +671,21 @@
     D.profs.forEach(function (n) {
       if (L.norm(n).indexOf(q) < 0) return;
       out.push({ tipo: 'Professor', titulo: n, sub: tel(n) || 'Sem telefone cadastrado', act: 'ir-view', view: 'professores' });
+    });
+    (S.ocorrencias || []).forEach(function (o) {
+      const texto = L.norm([o.aluno, o.ra || '', o.categoria || '', o.responsavel || '', o.evento || ''].join(' '));
+      if (texto.indexOf(q) < 0) return;
+      out.push({ tipo: 'Ocorrência', titulo: o.aluno, sub: (o.categoria || 'Sem categoria') + ' · ' + (o.responsavel || 'sem responsável'), act: 'ir-view', view: 'ocorrencias' });
+    });
+    (S.estoque || []).forEach(function (i) {
+      const texto = L.norm([i.item, i.categoria || '', i.fornecedor || '', i.obs || ''].join(' '));
+      if (texto.indexOf(q) < 0) return;
+      out.push({ tipo: 'Estoque', titulo: i.item, sub: (i.categoria || 'Outro') + (i.comprar ? ' · precisa comprar' : ''), act: 'ir-view', view: 'estoque' });
+    });
+    (S.afazeres || []).forEach(function (t) {
+      const texto = L.norm([t.demanda, t.responsavel || ''].join(' '));
+      if (texto.indexOf(q) < 0) return;
+      out.push({ tipo: 'Tarefa', titulo: t.demanda, sub: (t.responsavel ? t.responsavel + ' · ' : '') + (t.feito ? 'concluída' : (t.prazo ? 'prazo ' + L.fmtCurta(t.prazo) : 'sem prazo')), act: 'ir-view', view: 'afazeres' });
     });
     return out;
   }
@@ -626,6 +822,18 @@
   const AULA_CHK = [['chamada', 'Chamada registrada no Mentor'], ['fotos', 'Fotos da aula'], ['video', 'Vídeo da aula']];
   const chkAula = function (key) { return S.aulaChk[key] || {}; };
   const chkAulaCompleto = function (key) { const c = chkAula(key); return AULA_CHK.every(function (x) { return c[x[0]]; }); };
+  function linksEvidenciasGrupo(g, aulas) {
+    if (!g.prof) return '';
+    const mapa = DATA.evidenciasDrive || {};
+    const mesNum = Number(g.iso.slice(5, 7)), ano = Number(g.iso.slice(0, 4));
+    const vistos = {};
+    const btns = aulas.map(function (a) {
+      if (vistos[a.curso]) return ''; vistos[a.curso] = 1;
+      const url = L.urlEvidencias(mapa, a.curso, g.prof, mesNum, ano, a.fase) || L.DRIVE_RAIZ;
+      return '<a class="btn sm" href="' + esc(url) + '" target="_blank" rel="noopener" title="Fotos e vídeos desta aula no Drive">Pasta de evidências' + (aulas.length > 1 ? ' (' + esc(a.cursoCurto) + ')' : '') + '</a>';
+    }).join('');
+    return btns;
+  }
   function abrirGrupo(key) {
     const g = D.grupoPorKey[key]; if (!g) return;
     const aulas = g.aulaIds.map(function (id) { return D.porId[id]; }), a0 = aulas[0], t = tel(g.prof);
@@ -651,7 +859,7 @@
       '<label class="sr" for="msgTxt">Texto</label><textarea id="msgTxt" style="margin-top:.5rem;min-height:11rem">' + esc(atual.texto) + '</textarea>' +
       '<div class="msg-linha"><a class="btn primario' + (t ? '' : '" aria-disabled="true') + '" id="waBtn" ' + (t ? 'href="' + esc(L.waUrl(t, atual.texto)) + '" target="_blank" rel="noopener"' : '') + '>Abrir no WhatsApp</a><button type="button" class="btn" data-act="copiar-msg">Copiar texto</button></div>' +
       (t ? '' : '<p class="muted small" style="margin-top:.4rem">Cadastre o telefone em Dados › Telefones para abrir direto no WhatsApp.</p>') + '</div></div>' +
-      '<footer><button type="button" class="btn" data-act="editar" data-ids="' + esc(g.aulaIds.join(',')) + '" data-primary="' + esc(g.aulaIds[0]) + '">Editar aula</button><button type="button" class="btn" data-act="ics-grupo" data-key="' + esc(g.key) + '">Baixar .ics</button><button type="button" class="btn fim" data-act="fechar">Fechar</button></footer></div>');
+      '<footer><button type="button" class="btn" data-act="editar" data-ids="' + esc(g.aulaIds.join(',')) + '" data-primary="' + esc(g.aulaIds[0]) + '">Editar aula</button>' + linksEvidenciasGrupo(g, aulas) + '<button type="button" class="btn" data-act="ics-grupo" data-key="' + esc(g.key) + '">Baixar .ics</button><button type="button" class="btn fim" data-act="fechar">Fechar</button></footer></div>');
   }
   function abrirDia(iso) {
     const gs = gruposFiltrados().filter(function (g) { return g.iso === iso; });
@@ -676,7 +884,7 @@
       '<div><label for="e-d2">2º encontro</label><input type="date" id="e-d2" value="' + esc(d[1] || (isoInicial ? L.addDays(isoInicial, 14) : '')) + '"></div>' +
       '<div><label for="e-ini">Início</label><input type="time" id="e-ini" value="' + esc(horaVal(a ? a.ini : null)) + '"></div>' +
       '<div><label for="e-fim">Fim</label><input type="time" id="e-fim" value="' + esc(horaVal(a ? a.fim : null)) + '"></div>' +
-      '<div><label for="e-prof">Professor</label><input type="text" id="e-prof" list="lista-profs" value="' + esc(a ? a.prof : '') + '"><datalist id="lista-profs">' + D.profs.map(function (p) { return '<option value="' + esc(p) + '">'; }).join('') + '</datalist></div>' +
+      '<div><label for="e-prof">Professor</label><input type="text" id="e-prof" list="lista-profs" placeholder="Digite o nome (novo ou já cadastrado)" value="' + esc(a ? a.prof : '') + '"><datalist id="lista-profs">' + D.profs.map(function (p) { return '<option value="' + esc(p) + '">'; }).join('') + '</datalist><small class="muted">Pode digitar um nome que ainda não está na lista — ele é cadastrado sozinho ao salvar.</small></div>' +
       '<div><label for="e-mes">Mês de referência</label><select id="e-mes">' + L.MESES.map(function (m, i) { return '<option value="' + (i + 1) + '"' + (i + 1 === mesSel ? ' selected' : '') + '>' + m + '</option>'; }).join('') + '</select></div>' +
       (novo ? '<div><label for="e-sem">Semestre</label><select id="e-sem">' + SEMESTRES.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select></div>' : '') +
       '<div><label for="e-sala">Sala</label><select id="e-sala"><option value="">A definir</option>' + L.SALAS.map(function (s) { return '<option' + (a && a.sala === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></div>' +
@@ -792,7 +1000,7 @@
     baixar('calendario-polo-1740.xlsx', XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   }
   function backup() {
-    baixar('backup-painel-1740.json', JSON.stringify({ versao: 1, rows: S.rows, contatos: S.contatos, status: S.status, tarefas: S.tarefas, cfg: S.cfg, pend: S.pend, prat: S.prat, pratItens: S.pratItens }, null, 1), 'application/json');
+    baixar('backup-painel-1740.json', JSON.stringify({ versao: 1, rows: S.rows, contatos: S.contatos, status: S.status, tarefas: S.tarefas, cfg: S.cfg, pend: S.pend, prat: S.prat, pratItens: S.pratItens, ocorrencias: S.ocorrencias, estoque: S.estoque, afazeres: S.afazeres }, null, 1), 'application/json');
   }
 
   /* ---------- Ações ---------- */
@@ -883,7 +1091,40 @@
       registrar('Voltou a avisar sobre um item', sig.split('|').slice(1).join(' · '));
       render(); toast('Aviso reativado');
     },
-    'manter-rascunho': function () { LS.set('rowsBase', DATA.atualizado || ''); render(); }
+    'manter-rascunho': function () { LS.set('rowsBase', DATA.atualizado || ''); render(); },
+    'nova-ocorrencia': function () { abrirEditarOcorrencia(null); },
+    'editar-ocorrencia': function (el) { abrirEditarOcorrencia(el.dataset.id); },
+    'salvar-ocorrencia': salvarOcorrencia,
+    'excluir-ocorrencia': function () {
+      const f = $('#form-ocor'); if (!f) return;
+      const id = f.dataset.id; if (!confirm('Excluir esta ocorrência?')) return;
+      const o = S.ocorrencias.find(function (x) { return x.id === id; });
+      S.ocorrencias = S.ocorrencias.filter(function (x) { return x.id !== id; }); LS.set('ocorrencias', S.ocorrencias);
+      if (o) registrar('Excluiu ocorrência', o.aluno);
+      fecharDlg(); render(); toast('Ocorrência excluída');
+    },
+    'novo-estoque': function () { abrirEditarEstoque(null); },
+    'editar-estoque': function (el) { abrirEditarEstoque(el.dataset.id); },
+    'salvar-estoque': salvarEstoque,
+    'excluir-estoque': function () {
+      const f = $('#form-estoque'); if (!f) return;
+      const id = f.dataset.id; if (!confirm('Excluir este item?')) return;
+      const i = S.estoque.find(function (x) { return x.id === id; });
+      S.estoque = S.estoque.filter(function (x) { return x.id !== id; }); LS.set('estoque', S.estoque);
+      if (i) registrar('Excluiu item de estoque', i.item);
+      fecharDlg(); render(); toast('Item excluído');
+    },
+    'novo-afazer': function () { abrirEditarAfazer(null); },
+    'editar-afazer': function (el) { abrirEditarAfazer(el.dataset.id); },
+    'salvar-afazer': salvarAfazer,
+    'excluir-afazer': function () {
+      const f = $('#form-afazer'); if (!f) return;
+      const id = f.dataset.id; if (!confirm('Excluir esta tarefa?')) return;
+      const t = S.afazeres.find(function (x) { return x.id === id; });
+      S.afazeres = S.afazeres.filter(function (x) { return x.id !== id; }); LS.set('afazeres', S.afazeres);
+      if (t) registrar('Excluiu tarefa', t.demanda);
+      fecharDlg(); render(); toast('Tarefa excluída');
+    }
   };
   const CHG = {
     fCurso: function (el) { V.fCurso = el.value; render(); },
@@ -891,6 +1132,11 @@
     passado: function (el) { V.passado = el.checked; render(); },
     pratPassado: function (el) { V.pratPassado = el.checked; render(); },
     verIgnorados: function (el) { V.verIgnorados = el.checked; render(); },
+    ocorResolvidas: function (el) { V.ocorResolvidas = el.checked; render(); },
+    afazerFeitas: function (el) { V.afazerFeitas = el.checked; render(); },
+    'ocor-resp': function (el) { const o = S.ocorrencias.find(function (x) { return x.id === el.dataset.id; }); if (!o) return; o.responsavel = el.value; LS.set('ocorrencias', S.ocorrencias); if (el.value === 'Resolvido' && !o.solucaoEm) o.solucaoEm = HOJE; registrar('Atualizou responsável da ocorrência', o.aluno + ' · ' + (el.value || 'sem responsável')); render(); },
+    'estoque-comprar': function (el) { const i = S.estoque.find(function (x) { return x.id === el.dataset.id; }); if (!i) return; i.comprar = el.checked; LS.set('estoque', S.estoque); render(); const n = $('input[data-chg="estoque-comprar"][data-id="' + CSS.escape(i.id) + '"]'); if (n) n.focus(); },
+    'afazer-feito': function (el) { const t = S.afazeres.find(function (x) { return x.id === el.dataset.id; }); if (!t) return; t.feito = el.checked; LS.set('afazeres', S.afazeres); if (el.checked) registrar('Concluiu tarefa', t.demanda); render(); const n = $('input[data-chg="afazer-feito"][data-id="' + CSS.escape(t.id) + '"]'); if (n) n.focus(); },
     status: function (el) { const p = el.dataset.prof, k = el.dataset.k; S.status[p] = S.status[p] || {}; S.status[p][k] = el.checked; LS.set('status', S.status); render(); const n = $('input[data-chg="status"][data-prof="' + CSS.escape(p) + '"][data-k="' + k + '"]'); if (n) n.focus(); },
     tarefa: function (el) { const id = el.dataset.id; S.tarefas[id] = el.checked; LS.set('tarefas', S.tarefas); render(); const n = $('input[data-chg="tarefa"][data-id="' + CSS.escape(id) + '"]'); if (n) n.focus(); },
     'pend-feito': function (el) { const p = S.pend.find(function (x) { return x.id === el.dataset.id; }); if (!p) return; p.feito = el.checked; LS.set('pend', S.pend); if (el.checked) registrar('Resolveu pendência', p.titulo); render(); const n = $('input[data-chg="pend-feito"][data-id="' + CSS.escape(p.id) + '"]'); if (n) n.focus(); },
@@ -919,6 +1165,7 @@
         const b = JSON.parse(t); if (!b || !Array.isArray(b.rows)) throw new Error('Arquivo de backup inválido');
         if (!confirm('Substituir os dados deste navegador pelo backup?')) return;
         S.rows = b.rows; S.contatos = b.contatos || {}; S.status = b.status || {}; S.tarefas = b.tarefas || {}; S.cfg = Object.assign(S.cfg, b.cfg || {}); if (b.pend) { S.pend = b.pend; LS.set('pend', S.pend); } if (b.prat) { S.prat = b.prat; LS.set('prat', S.prat); } if (b.pratItens) { S.pratItens = b.pratItens; LS.set('pratItens', S.pratItens); }
+        if (b.ocorrencias) { S.ocorrencias = b.ocorrencias; LS.set('ocorrencias', S.ocorrencias); } if (b.estoque) { S.estoque = b.estoque; LS.set('estoque', S.estoque); } if (b.afazeres) { S.afazeres = b.afazeres; LS.set('afazeres', S.afazeres); }
         LS.set('contatos', S.contatos); LS.set('status', S.status); LS.set('tarefas', S.tarefas); LS.set('cfg', S.cfg); persistir(); render(); toast('Backup carregado');
       }).catch(function (err) { toast(err.message || 'Não consegui ler o backup'); }); el.value = ''; return;
     }
@@ -935,7 +1182,7 @@
   });
 
   /* ---------- Render e rotas ---------- */
-  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, buscar: viewBusca, guia: viewGuia, dados: viewDados };
+  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, ocorrencias: viewOcorrencias, estoque: viewEstoque, afazeres: viewAfazeres, buscar: viewBusca, guia: viewGuia, dados: viewDados };
   function banner() {
     if (Sync.configured()) return '';
     const rascunho = LS.get('rows', null), base = LS.get('rowsBase', '');
@@ -949,6 +1196,8 @@
     const nErr = issuesFuturas('erro').length + pendAbertas().length, rasc = !!LS.get('rows', null);
     $('#nav').innerHTML = VIEWS.map(function (v) {
       return '<a href="#' + v.id + '"' + (v.id === id ? ' aria-current="page"' : '') + '>' + svg(v.id) + v.nome + (v.id === 'conferencia' && nErr ? '<span class="n" title="Erros de hoje em diante e decisões pendentes">' + nErr + '</span>' : '') + '</a>';
+    }).join('') + '<hr class="sep-nav">' + EXT_LINKS.map(function (l) {
+      return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" class="nav-ext">' + svg(l.id) + l.nome + '</a>';
     }).join('');
     const foot = $('.rodape');
     if (foot) {

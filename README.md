@@ -12,6 +12,22 @@ Em **Dados › Matrículas por turma** dá para importar a exportação de matr�
 
 Em **Dados**, no fim da página, fica o campo "Seu nome" e a lista **Atividade recente**: toda edição de aula, telefone, pendência ou matrícula fica registrada com quem mexeu e quando (ex.: "há 2 min · Carla · Editou aula: Bases Morfofuncionais · Sala 4"). Na primeira alteração que fizer, o painel pergunta seu nome uma vez (dá para trocar depois em Dados). Com a sincronização ativa, esse registro também aparece para as outras coordenadoras.
 
+No menu, abaixo das abas, ficam dois atalhos que abrem em outra aba: **Permanência** (`permanencia.app.unifecaf.edu.br`) e **Links úteis** (`conteudo.unifecaf.com.br/polos-links-uteis`).
+
+## Novas abas: Ocorrências, Estoque e Tarefas
+
+Essas três abas substituem as planilhas que a coordenação usava separadamente. Os dados ficam salvos como tudo mais no painel (neste navegador, ou sincronizados entre navegadores se a sincronização estiver ativa).
+
+- **Ocorrências**: registro de solicitações/problemas de alunos (aluno, RA, categoria, responsável, data, prazo, o que já foi feito). Mude o responsável direto na lista; quando marcar "Resolvido" a ocorrência sai da lista de abertas (dá para ver de novo marcando "Mostrar resolvidas").
+- **Estoque**: itens de Escritório, Cozinha, Limpeza, Manutenção e Papelaria, agrupados por categoria, com quantidade, fornecedor, preço e a caixinha "Precisa comprar". Não faz comparação de preços entre fornecedores como a planilha antiga — é só um campo de observação/preço por item.
+- **Tarefas**: lista contínua de demandas administrativas (data, responsável, prazo), com uma caixinha de concluída — não precisa mais recriar a lista todo mês copiando de uma planilha para a outra.
+
+Essas três abas também entram na busca (aba **Buscar**).
+
+## Pasta de evidências no Drive
+
+Em **Professores** (para o mês atual) e ao abrir uma aula específica (nas abas Semana/Calendário), aparece um botão **Evidências** / **Pasta de evidências** que abre direto a pasta certa no Drive (`Evidencias_Aulas > Curso > Professor > mês_ano_semestre`), sem precisar navegar manualmente. As pastas de setembro e outubro de 2026 já foram criadas; para os meses seguintes, peça para as pastas serem criadas (ou peça isso aqui na conversa) — enquanto não existir uma pasta específica, o botão abre a pasta geral `Evidencias_Aulas` e é só criar a subpasta manualmente lá dentro, no mesmo padrão de nomes.
+
 ## Como publicar no GitHub Pages (uma vez só)
 
 1. Entre em github.com e crie um repositório novo (ex.: `painel-polo-1740`).

@@ -25,7 +25,9 @@
     formIndicacao: 'https://docs.google.com/forms/d/e/1FAIpQLSf7lq9zLElgDAm89SjASwnaayX4R1aHh8hPbwQuvoSZ2OxxSw/viewform',
     formPrestador: 'http://bit.ly/46fXJJf',
     formMentor: 'https://docs.google.com/forms/d/e/1FAIpQLScqtYgGtyXOoeLE_AL5chSgu1Y7HcuCn3c2Euwa2_3g29221g/viewform',
-    formEvidencias: 'http://bit.ly/4neHwdk'
+    formEvidencias: 'http://bit.ly/4neHwdk',
+    permanencia: 'https://permanencia.app.unifecaf.edu.br/',
+    linksUteis: 'https://conteudo.unifecaf.com.br/polos-links-uteis'
   };
 
   // Salas físicas do polo disponíveis para as aulas presenciais da faculdade.
@@ -523,6 +525,14 @@
     return { totalAlunos: porAluno.size, grupos: grupos, semEixo: semEixo };
   }
 
+  // Chave e link da pasta de evidências no Drive (Curso > Professor > MM_AAAA_fase), montadas quando o polo criou as pastas.
+  const DRIVE_RAIZ = 'https://drive.google.com/drive/folders/17USKyKENKXWbDbu4uB5NVQ7Ps5MJX_mD';
+  function chaveEvidencias(curso, prof, mesNum, ano, fase) { return curso + '|' + prof + '|' + pad(mesNum) + '_' + ano + '_' + fase; }
+  function urlEvidencias(mapa, curso, prof, mesNum, ano, fase) {
+    const id = mapa && mapa[chaveEvidencias(curso, prof, mesNum, ano, fase)];
+    return id ? 'https://drive.google.com/drive/folders/' + id : null;
+  }
+
   function dataJs(rows, atualizado, extras) {
     return '// Gerado pelo painel em ' + atualizado + '. Substitua este arquivo no repositório para publicar as alterações.\nwindow.CALENDARIO_DATA = ' +
       JSON.stringify(Object.assign({ polo: '1740', atualizado: atualizado }, extras || {}, { rows: rows }), null, 1) + ';\n';
@@ -535,6 +545,7 @@
     fmtCurta: fmtCurta, fmtLonga: fmtLonga, fmtBR: fmtBR, ultimoDia: ultimoDia, hhmm: hhmm, faixa: faixa, faixaTurno: faixaTurno,
     parseDatas: parseDatas, parseDia: parseDia, parseHorario: parseHorario, parseMes: parseMes, profCanon: profCanon, cursoInfo: cursoInfo,
     fromRows: fromRows, toRows: toRows, eventos: eventos, agrupar: agrupar, auditar: auditar, prazosDoMes: prazosDoMes, lembretes: lembretes,
+    DRIVE_RAIZ: DRIVE_RAIZ, chaveEvidencias: chaveEvidencias, urlEvidencias: urlEvidencias,
     parseContatos: parseContatos, fmtTel: fmtTel, waUrl: waUrl, mensagens: mensagens, msgCadastro: msgCadastro,
     ics: ics, lerLinhasPlanilha: lerLinhasPlanilha, dataJs: dataJs,
     parseEixo: parseEixo, lerMatriculas: lerMatriculas, resumoMatriculas: resumoMatriculas, grupoMatricula: grupoMatricula, vesperaUtil: vesperaUtil
