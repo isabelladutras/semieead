@@ -949,5 +949,946 @@ window.CALENDARIO_DATA = {
   "Terapia Ocupacional|Marcelo|09_2026_2": "1-hYIxRTwStkKf1JSJR_vtTn2PdS5utmn",
   "Terapia Ocupacional|Marcelo|10_2026_1": "1IkMQP1kbpcJPtkbRf1-NO6lFf5eJkOw-",
   "Terapia Ocupacional|Rafael|10_2026_2": "1Tesomlyb3a3GNEb-pMax4YYL7dk43QxC"
- }
+ },
+ "ocorrencias": [
+  {
+   "id": "o1",
+   "aluno": "Livia Moreira Mandarino",
+   "ra": "264731",
+   "categoria": "Outros Acadêmico",
+   "responsavel": "P. Suporte Acadêmico",
+   "dataOcorrencia": "2026-08-03",
+   "prazo": "2026-08-04",
+   "solucaoEm": "2026-08-05",
+   "evento": "Aluna trocou o curso  de RH para Pedagogia e ainda aparecem as disciplinas de RH para a mesma,solicitar a atualização da plataforma da aluna, pois a situação esta gerando confusão e insatisfação. FECAF respondeu que as aulas de RH que aparecem no perfil aluno, são na vdd um histórico das  aulas vivenciadas pela aluna e ficam como registro até a conclusão do curso. Importante que as matéria do novo corso tbm aparecem listadas no perfil"
+  },
+  {
+   "id": "o2",
+   "aluno": "Juliana Gabriela Fraga Neto",
+   "ra": "262706",
+   "categoria": "Alterações Financeiras",
+   "responsavel": "P. Suporte Financeiro",
+   "dataOcorrencia": "2026-07-31",
+   "prazo": "2026-08-10",
+   "solucaoEm": "2026-08-10",
+   "evento": "Solicitei a verificação dos boletos já pagos que constam em aberto na plaforma da aluna para solicitar a remoção de juros dos meses de junho e julho que estão em aberto, mas na plataforma da aluna consta que desde abril as mensalidades não pagas. Plataforma foi atualizada até maio, enviamo para aluna boletos de junho e julho no dia 08/08."
+  },
+  {
+   "id": "o3",
+   "aluno": "Natália Rodrigues de Olim Marote",
+   "ra": "189115",
+   "categoria": "Alterações Financeiras",
+   "responsavel": "Resolvido",
+   "dataOcorrencia": "",
+   "prazo": "",
+   "solucaoEm": "2026-08-18",
+   "evento": "Verificar com o setor responsável o desconto da aluna que é de 199,90 mas depois de agosto aparece com o valor de 203,80 (verificar se é algum erro do sistema ou é a taxa de inflação) O valor da diferença era o rejuste anual da taxa, a aluna verificou no contrato e está ciente."
+  },
+  {
+   "id": "o4",
+   "aluno": "Uverlânia Cabral dos Santos",
+   "ra": "245729",
+   "categoria": "",
+   "responsavel": "Resolvido",
+   "dataOcorrencia": "",
+   "prazo": "",
+   "solucaoEm": "2026-08-19",
+   "evento": "Verificar com o setor responsável se é possivel a aluna voltar para a turma anterior, pois a mesma solicitou a mudança de eixo,mas não houve formação de turma. Conseguimos contato com o setor responsável (Aline Matos) e aluna retomará para a sua turma de inicio, estando ciente que precisará cursar as disciplinas que deixou de cursar nesse tempo que esteve \"afastada\"."
+  },
+  {
+   "id": "o5",
+   "aluno": "Ana Beatriz Rufino da Silva",
+   "ra": "278029",
+   "categoria": "",
+   "responsavel": "Resolvido",
+   "dataOcorrencia": "",
+   "prazo": "2026-08-19",
+   "solucaoEm": "2026-08-10",
+   "evento": "Entrar em contato com o setor financeiro para verificar se há possibilidade da remoção do boleto do mês vigente da aluna. Entramos em contato com o setor reponsavel (17/08) e estamos aguardando o retorno da Aline, nos deu o prazo de 24h. Conseguimos resolver atraves da Isabela, ela pagou o boleto que era devido da aluna para não gerar problemas futuros com a aluna."
+  },
+  {
+   "id": "o6",
+   "aluno": "Vinicius Franco Dias",
+   "ra": "186698",
+   "categoria": "Análise Curricular",
+   "responsavel": "Resolvido",
+   "dataOcorrencia": "2026-07-30",
+   "prazo": "2026-08-10",
+   "solucaoEm": "2026-08-11",
+   "evento": "Aluno parou de estudar em agosto de 2025 e estava com parcela em aberto. fez a quitação em 2026 e agora estamos esperando o resultado da análise para saber em qual período irá retorna aos estudos. (fisioterapia EAD). O aluno não teve nenhum aproveitamento de disciplina e iniciará no primeiro periodo em setembro."
+  },
+  {
+   "id": "o7",
+   "aluno": "Haroldo Augusto Silva de Freitas",
+   "ra": "179530",
+   "categoria": "Outros Acadêmico",
+   "responsavel": "Resolvido",
+   "dataOcorrencia": "2026-08-04",
+   "prazo": "2026-08-07",
+   "solucaoEm": "2026-08-06",
+   "evento": "O aluno informou que a disciplina que ele já cursou está disponivel novamente a plataforma. Foi aberto um chamado de 72h no qual o problema do aluno foi resolvido dentro do prazo."
+  },
+  {
+   "id": "o8",
+   "aluno": "Priscila Gonçalves Leite",
+   "ra": "191597",
+   "categoria": "Outros Acadêmico",
+   "responsavel": "P. Naiane",
+   "dataOcorrencia": "2026-08-05",
+   "prazo": "",
+   "solucaoEm": "",
+   "evento": "Aluna precisa de um polo para assitir as aulas prática EAD, ela queria fazer em Nova iguaçu. porém o polo informou que não terá aula pratica de Radio"
+  },
+  {
+   "id": "o9",
+   "aluno": "Elenilton ARQ e URB",
+   "ra": "162758",
+   "categoria": "Outros Acadêmico",
+   "responsavel": "P. Suporte Acadêmico",
+   "dataOcorrencia": "2026-08-17",
+   "prazo": "",
+   "solucaoEm": "",
+   "evento": "Aluno falou que estava com dificuldades na plataforma e não estava conseguindo apoio do tutor. enviamos o contato do agiliza para ele e informei que ele poderia entrar em contato novamente caso não conseguisse retorno."
+  },
+  {
+   "id": "o10",
+   "aluno": "Laisa Cristina Soares",
+   "ra": "259767",
+   "categoria": "Mudança de Eixo",
+   "responsavel": "Resolvido",
+   "dataOcorrencia": "2026-08-17",
+   "prazo": "2026-08-31",
+   "solucaoEm": "2026-08-26",
+   "evento": "Aluna solicitou a mudança de eixo e o prazo para ser definido é até o dia 31/08.Solicitação de eixo deferida aluna iniciará em novembro."
+  },
+  {
+   "id": "o11",
+   "aluno": "Gean Maykon Freitas de Almeida",
+   "ra": "295652",
+   "categoria": "Mudança de Eixo",
+   "responsavel": "P. Aline",
+   "dataOcorrencia": "2026-08-18",
+   "prazo": "2026-09-01",
+   "solucaoEm": "2026-09-02",
+   "evento": "Aluno solicitou a mudança de eixo e o prazo para ser definido é até o dia 1/09. Solicitação foi deferida, o aluno iniciará em novembro."
+  },
+  {
+   "id": "o12",
+   "aluno": "Gabriella Santos Gerônimo",
+   "ra": "277470",
+   "categoria": "Outros Acadêmico",
+   "responsavel": "Resolvido",
+   "dataOcorrencia": "2026-08-19",
+   "prazo": "2026-08-25",
+   "solucaoEm": "2026-08-22",
+   "evento": "A aluna perdeu a data da prova, solicitei a abertura da prova apresentado o atestado médico da aluna, estou epserando na plataforma para sabe se vai ser cobrado ou não."
+  },
+  {
+   "id": "o13",
+   "aluno": "Marcos Luiz da Silva Ribeiro",
+   "ra": "297723",
+   "categoria": "Mudança de Eixo",
+   "responsavel": "Resolvido",
+   "dataOcorrencia": "2026-08-19",
+   "prazo": "2026-09-02",
+   "solucaoEm": "",
+   "evento": "Solicitou a mudança de eixo para Outubro. Resultado da análise sai dia 02/09/2026."
+  },
+  {
+   "id": "o14",
+   "aluno": "Matheus da Silva de Souza",
+   "ra": "280397",
+   "categoria": "Mudança de Eixo",
+   "responsavel": "Resolvido",
+   "dataOcorrencia": "2026-08-19",
+   "prazo": "2026-09-02",
+   "solucaoEm": "",
+   "evento": "Solicitou a mudança de eixo para Outubro. Resultado da análise sai dia 02/09/2026."
+  },
+  {
+   "id": "o15",
+   "aluno": "Julia Luiza Oliveira Melquiates",
+   "ra": "298506",
+   "categoria": "Mudança de Eixo",
+   "responsavel": "P. Aline",
+   "dataOcorrencia": "2026-08-24",
+   "prazo": "2026-09-08",
+   "solucaoEm": "",
+   "evento": "Solicitou a mudança de eixo para novembro. Resultado da análise sai dia 08/09/2026."
+  },
+  {
+   "id": "o16",
+   "aluno": "Maria Luiza de Lima do Nascimento",
+   "ra": "290542",
+   "categoria": "Outros Acadêmico",
+   "responsavel": "P. Suporte Acadêmico",
+   "dataOcorrencia": "2026-08-27",
+   "prazo": "2026-08-30",
+   "solucaoEm": "",
+   "evento": "A aluna não está conseguido acessar o biblioteca virtual, o Polo abriu um chamado resultado sai em 72H."
+  },
+  {
+   "id": "o17",
+   "aluno": "Thainara da Silva Batista Fogaça",
+   "ra": "285752",
+   "categoria": "Mudança de Eixo",
+   "responsavel": "P. Aline",
+   "dataOcorrencia": "2026-08-27",
+   "prazo": "2026-09-11",
+   "solucaoEm": "",
+   "evento": "Solicitou a mudança de eixo para janeiro. Resultado da análise sai dia 11/09/2026."
+  },
+  {
+   "id": "o18",
+   "aluno": "Roberta de Souza",
+   "ra": "272043",
+   "categoria": "Cancelamento",
+   "responsavel": "P. Aline",
+   "dataOcorrencia": "2026-08-27",
+   "prazo": "2026-09-08",
+   "solucaoEm": "",
+   "evento": "A aluna solicitou o trancamento e o prazo para deferimento é de até o dia 08/09"
+  },
+  {
+   "id": "o19",
+   "aluno": "Dominique Moraes Caetano",
+   "ra": "273085",
+   "categoria": "Cancelamento",
+   "responsavel": "P. Aline",
+   "dataOcorrencia": "2026-08-27",
+   "prazo": "2026-09-08",
+   "solucaoEm": "",
+   "evento": "A aluna solicitou o trancamento e o prazo para deferimento é de até o dia 08/09"
+  },
+  {
+   "id": "o20",
+   "aluno": "Aniel Cristian Belém Passos",
+   "ra": "270419",
+   "categoria": "Cancelamento",
+   "responsavel": "P. Aline",
+   "dataOcorrencia": "2026-08-27",
+   "prazo": "2026-09-08",
+   "solucaoEm": "",
+   "evento": "O aluno solicitou o trancamento e o prazo para deferimento é de até o dia 08/09"
+  },
+  {
+   "id": "o21",
+   "aluno": "Paulo Rogério Barbosa",
+   "ra": "309430",
+   "categoria": "Cancelamento",
+   "responsavel": "",
+   "dataOcorrencia": "2026-08-31",
+   "prazo": "2026-09-10",
+   "solucaoEm": "",
+   "evento": "O aluno solicitou o trancamento e o prazo para deferimento é de até o dia 09/09"
+  }
+ ],
+ "estoque": [
+  {
+   "id": "e1",
+   "categoria": "Cozinha",
+   "item": "Açúcar",
+   "qtd": 2,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e2",
+   "categoria": "Cozinha",
+   "item": "Adoçante",
+   "qtd": 1,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e3",
+   "categoria": "Limpeza",
+   "item": "Alcool",
+   "qtd": 0,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 2"
+  },
+  {
+   "id": "e4",
+   "categoria": "Cozinha",
+   "item": "Café",
+   "qtd": 0,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e5",
+   "categoria": "Limpeza",
+   "item": "Cife",
+   "qtd": 1,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 1"
+  },
+  {
+   "id": "e6",
+   "categoria": "Limpeza",
+   "item": "Cloro Concentrado",
+   "qtd": 0,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 1"
+  },
+  {
+   "id": "e7",
+   "categoria": "Limpeza",
+   "item": "Coala",
+   "qtd": 0,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e8",
+   "categoria": "Cozinha",
+   "item": "Copos água",
+   "qtd": 0,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 1000"
+  },
+  {
+   "id": "e9",
+   "categoria": "Cozinha",
+   "item": "Copos Café",
+   "qtd": 5,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e10",
+   "categoria": "Limpeza",
+   "item": "Detergente",
+   "qtd": 7,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e11",
+   "categoria": "Limpeza",
+   "item": "Eliminador de odores",
+   "qtd": null,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 1"
+  },
+  {
+   "id": "e12",
+   "categoria": "Limpeza",
+   "item": "Esponja",
+   "qtd": 2,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 4"
+  },
+  {
+   "id": "e13",
+   "categoria": "Limpeza",
+   "item": "Limpa Inox",
+   "qtd": 0,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 1"
+  },
+  {
+   "id": "e14",
+   "categoria": "Limpeza",
+   "item": "Limpa vidro",
+   "qtd": 2,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e15",
+   "categoria": "Limpeza",
+   "item": "Lustra Moveis",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e16",
+   "categoria": "Cozinha",
+   "item": "Mistruraror",
+   "qtd": 0,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 5000"
+  },
+  {
+   "id": "e17",
+   "categoria": "Limpeza",
+   "item": "Óleo Peróba",
+   "qtd": 0,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 1"
+  },
+  {
+   "id": "e18",
+   "categoria": "Cozinha",
+   "item": "Papel Filtro",
+   "qtd": 2,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 60"
+  },
+  {
+   "id": "e19",
+   "categoria": "Limpeza",
+   "item": "Papel Higiênico",
+   "qtd": 5,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 8"
+  },
+  {
+   "id": "e20",
+   "categoria": "Limpeza",
+   "item": "Papel Tolha",
+   "qtd": 8,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 30"
+  },
+  {
+   "id": "e21",
+   "categoria": "Limpeza",
+   "item": "Pedra de Cloro",
+   "qtd": 0,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e22",
+   "categoria": "Limpeza",
+   "item": "Pedra Sanitária",
+   "qtd": 4,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 12"
+  },
+  {
+   "id": "e23",
+   "categoria": "Cozinha",
+   "item": "Pirulito",
+   "qtd": 0,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 6"
+  },
+  {
+   "id": "e24",
+   "categoria": "Limpeza",
+   "item": "Sabonete",
+   "qtd": 2,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e25",
+   "categoria": "Limpeza",
+   "item": "Saco lixo preto 100L",
+   "qtd": 39,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 100"
+  },
+  {
+   "id": "e26",
+   "categoria": "Limpeza",
+   "item": "Saco lixo preto 40L",
+   "qtd": 76,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e27",
+   "categoria": "Limpeza",
+   "item": "Saco lixo preto 60L",
+   "qtd": 31,
+   "comprar": true,
+   "fornecedor": "",
+   "preco": null,
+   "obs": "precisa comprar 100"
+  },
+  {
+   "id": "e28",
+   "categoria": "Limpeza",
+   "item": "Veja",
+   "qtd": 6,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e29",
+   "categoria": "Escritório",
+   "item": "Papel A4",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "Empresa B",
+   "preco": 29.0,
+   "obs": "outro orçamento: R$ 30.0"
+  },
+  {
+   "id": "e30",
+   "categoria": "Escritório",
+   "item": "Caneta para lousa",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e31",
+   "categoria": "Escritório",
+   "item": "Apagador",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e32",
+   "categoria": "Escritório",
+   "item": "Refil impressora",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e33",
+   "categoria": "Escritório",
+   "item": "Pilhas",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e34",
+   "categoria": "Cozinha",
+   "item": "Sal",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e35",
+   "categoria": "Limpeza",
+   "item": "Desinfetante",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e36",
+   "categoria": "Limpeza",
+   "item": "Cloro",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e37",
+   "categoria": "Limpeza",
+   "item": "Desengordurante",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e38",
+   "categoria": "Limpeza",
+   "item": "Palha de aço",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e39",
+   "categoria": "Limpeza",
+   "item": "saco de lixo 20L,40L 60L",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e40",
+   "categoria": "Limpeza",
+   "item": "Luva de borracha",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e41",
+   "categoria": "Papelaria",
+   "item": "caixa de lápis",
+   "qtd": 1,
+   "comprar": false,
+   "fornecedor": "Papelaria RMDS",
+   "preco": 7.9,
+   "obs": "outros: Bazar Do Céu R$ 18.0, jejê papelaria R$ 69.9, Enfoque R$ 8.4"
+  },
+  {
+   "id": "e42",
+   "categoria": "Papelaria",
+   "item": "borracha",
+   "qtd": 2,
+   "comprar": false,
+   "fornecedor": "jejê papelaria",
+   "preco": 3.5,
+   "obs": "outros: Bazar Do Céu R$ 10.0, Papelaria RMDS R$ 5.0, Enfoque R$ 17.5"
+  },
+  {
+   "id": "e43",
+   "categoria": "Papelaria",
+   "item": "apontador",
+   "qtd": 5,
+   "comprar": false,
+   "fornecedor": "jejê papelaria",
+   "preco": 3.0,
+   "obs": "outros: Bazar Do Céu R$ 49.5, Papelaria RMDS R$ 5.0, Enfoque R$ 14.5"
+  },
+  {
+   "id": "e44",
+   "categoria": "Papelaria",
+   "item": "tesoura sem ponta",
+   "qtd": 4,
+   "comprar": false,
+   "fornecedor": "jejê papelaria",
+   "preco": 19.6,
+   "obs": "outros: Bazar Do Céu R$ 32.0, Papelaria RMDS R$ 22.0, Enfoque R$ 19.75"
+  },
+  {
+   "id": "e45",
+   "categoria": "Papelaria",
+   "item": "tesoura grande",
+   "qtd": 4,
+   "comprar": false,
+   "fornecedor": "jejê papelaria",
+   "preco": 30.0,
+   "obs": "outros: Bazar Do Céu R$ 107.0, Papelaria RMDS R$ 51.56"
+  },
+  {
+   "id": "e46",
+   "categoria": "Papelaria",
+   "item": "cola branca",
+   "qtd": 3,
+   "comprar": false,
+   "fornecedor": "jejê papelaria",
+   "preco": 7.47,
+   "obs": "outros: Bazar Do Céu R$ 28.5, Papelaria RMDS R$ 8.97, Enfoque R$ 16.5"
+  },
+  {
+   "id": "e47",
+   "categoria": "Papelaria",
+   "item": "caixa de lápis de cor",
+   "qtd": 1,
+   "comprar": false,
+   "fornecedor": "Papelaria RMDS",
+   "preco": 5.6,
+   "obs": "outros: Bazar Do Céu R$ 10.0, jejê papelaria R$ 7.99, Enfoque R$ 12.0"
+  },
+  {
+   "id": "e48",
+   "categoria": "Papelaria",
+   "item": "corretivo",
+   "qtd": 2,
+   "comprar": false,
+   "fornecedor": "Enfoque",
+   "preco": 7.8,
+   "obs": "outros: Bazar Do Céu R$ 15.0, Papelaria RMDS R$ 9.0, jejê papelaria R$ 11.98"
+  },
+  {
+   "id": "e49",
+   "categoria": "Papelaria",
+   "item": "Envelope pardo",
+   "qtd": 10,
+   "comprar": false,
+   "fornecedor": "jejê papelaria",
+   "preco": 8.0,
+   "obs": "outros: Bazar Do Céu R$ 15.0, Papelaria RMDS R$ 10.0, Enfoque R$ 9.0"
+  },
+  {
+   "id": "e50",
+   "categoria": "Papelaria",
+   "item": "pastas",
+   "qtd": 10,
+   "comprar": false,
+   "fornecedor": "Papelaria RMDS",
+   "preco": 78.0,
+   "obs": "outros: Bazar Do Céu R$ 410.0, jejê papelaria R$ 279.0, Enfoque R$ 549.0"
+  },
+  {
+   "id": "e51",
+   "categoria": "Papelaria",
+   "item": "Pilhas Palito",
+   "qtd": 10,
+   "comprar": false,
+   "fornecedor": "",
+   "preco": null,
+   "obs": ""
+  },
+  {
+   "id": "e52",
+   "categoria": "Papelaria",
+   "item": "Tinta pra piloto 5 cada cor",
+   "qtd": null,
+   "comprar": false,
+   "fornecedor": "Enfoque",
+   "preco": 97.0,
+   "obs": "outros: Bazar Do Céu R$ 142.5, Papelaria RMDS R$ 148.95"
+  }
+ ],
+ "afazeres": [
+  {
+   "id": "t1",
+   "demanda": "Manutenção: Criar mural patio",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t2",
+   "demanda": "Manutenção: Criar mural nas salas de aula",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t3",
+   "demanda": "Manutenção: Chamar Aroldo innstalar tomadas e lampadas tubulares",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t4",
+   "demanda": "Manutenção: Cadeiras e lousa nova sala de aula",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t5",
+   "demanda": "Manutenção: Dispenser e lieira banheiro masculino",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t6",
+   "demanda": "Manutenção: Consertar  cadeira amarela pé",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t7",
+   "demanda": "Manutenção: Limpeza Calhas",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t8",
+   "demanda": "Manutenção: bicicleetário",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t9",
+   "demanda": "Manutenção:  lampadas externas",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t10",
+   "demanda": "Manutenção: Computador recepção",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t11",
+   "demanda": "Manutenção: Headset",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t12",
+   "demanda": "Manutenção: Lâmpada para recepção e faixada",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t13",
+   "demanda": "Manutenção: dispenser do banheiro masculino está caindo",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t14",
+   "demanda": "Funday Dezembro",
+   "responsavel": "Naiane",
+   "data": "2026-07-01",
+   "prazo": "2026-10-01",
+   "feito": false
+  },
+  {
+   "id": "t15",
+   "demanda": "Hallowen",
+   "responsavel": "Naiane",
+   "data": "2026-07-15",
+   "prazo": "2026-08-24",
+   "feito": false
+  },
+  {
+   "id": "t16",
+   "demanda": "Cerimônia do Jaleco",
+   "responsavel": "Naiane",
+   "data": "2026-07-15",
+   "prazo": "2026-08-12",
+   "feito": false
+  },
+  {
+   "id": "t17",
+   "demanda": "Confecção Manual",
+   "responsavel": "Ambas",
+   "data": "2026-07-23",
+   "prazo": "2026-08-30",
+   "feito": false
+  },
+  {
+   "id": "t18",
+   "demanda": "Videos principais dúvidas sobre portal aluno",
+   "responsavel": "Aline",
+   "data": "2026-07-23",
+   "prazo": "2026-08-30",
+   "feito": false
+  },
+  {
+   "id": "t19",
+   "demanda": "Matriculas Washington - Solicitar aos professores lista de aprovados, pedir a camila falar com os alunos reprovados que ainda não confirmaram matricula",
+   "responsavel": "Ambas",
+   "data": "",
+   "prazo": "2026-08-05",
+   "feito": false
+  },
+  {
+   "id": "t20",
+   "demanda": "Organização semi agosto",
+   "responsavel": "",
+   "data": "",
+   "prazo": "2026-08-04",
+   "feito": false
+  },
+  {
+   "id": "t21",
+   "demanda": "Plantões Fixos 9h / 20:30 e Sexta 15:30",
+   "responsavel": "",
+   "data": "",
+   "prazo": "2026-08-03",
+   "feito": false
+  },
+  {
+   "id": "t22",
+   "demanda": "Ficará na agenda a informação de onde ou qual foi o último aluno de risco ou cobrança do turno",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  },
+  {
+   "id": "t23",
+   "demanda": "Lista de material / Cobrança",
+   "responsavel": "",
+   "data": "",
+   "prazo": "",
+   "feito": false
+  }
+ ]
 };

@@ -40,9 +40,9 @@
     log: LS.get('log', []),
     pratItens: LS.get('pratItens', null) || basePratItens(),
     ignorados: LS.get('ignorados', {}),
-    ocorrencias: LS.get('ocorrencias', []),
-    estoque: LS.get('estoque', []),
-    afazeres: LS.get('afazeres', [])
+    ocorrencias: LS.get('ocorrencias', null) || (DATA.ocorrencias || []).map(function (o) { return Object.assign({}, o); }),
+    estoque: LS.get('estoque', null) || (DATA.estoque || []).map(function (e) { return Object.assign({}, e); }),
+    afazeres: LS.get('afazeres', null) || (DATA.afazeres || []).map(function (t) { return Object.assign({}, t); })
   };
   const V = { view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorResolvidas: false, afazerFeitas: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
   const D = {};
@@ -1220,6 +1220,26 @@
       S[k] = k === 'cfg' ? Object.assign({ assinatura: 'Coordenação Acadêmica — Polo 1740' }, dados[k]) : dados[k];
       LS.setLocal(k, S[k]); mudou = true;
     });
+    /* Migração única: as abas Ocorrências/Estoque/Tarefas foram sincronizadas vazias antes de
+       existirem os itens das planilhas. Na primeira vez que qualquer navegador abrir o painel
+       depois desta atualização, se estiverem vazias no banco compartilhado, preenche com os
+       itens que já vieram no data.js e marca a migração como feita (pra nunca repetir, mesmo
+       se depois alguém apagar tudo de propósito). */
+    if (!S.cfg.seedNovasAbasV1) {
+      const semear = { ocorrencias: DATA.ocorrencias || [], estoque: DATA.estoque || [], afazeres: DATA.afazeres || [] };
+      let algumaSemeada = false;
+      ['ocorrencias', 'estoque', 'afazeres'].forEach(function (k) {
+        if ((!S[k] || !S[k].length) && semear[k].length) {
+          S[k] = semear[k].map(function (x) { return Object.assign({}, x); });
+          LS.setLocal(k, S[k]);
+          algumaSemeada = true;
+        }
+      });
+      S.cfg = Object.assign({}, S.cfg, { seedNovasAbasV1: true });
+      LS.set('cfg', S.cfg);
+      if (algumaSemeada) { LS.set('ocorrencias', S.ocorrencias); LS.set('estoque', S.estoque); LS.set('afazeres', S.afazeres); }
+      mudou = true;
+    }
     if (mudou) { recalc(); render(); }
   }
   function estadoAtual() {
