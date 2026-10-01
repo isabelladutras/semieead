@@ -40,12 +40,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .small { font-size: 0.8125rem; }
 
 /* Navegação */
-.rail { background: var(--rail); color: var(--rail-ink); padding: 1.4rem 1rem; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 1.4rem; }
+.rail { background: var(--rail); color: var(--rail-ink); padding: 1.2rem 0.9rem; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) transparent; }
+.rail::-webkit-scrollbar { width: 6px; } .rail::-webkit-scrollbar-thumb { background: rgba(255,255,255,.35); border-radius: 3px; }
 .marca { display: flex; flex-direction: column; gap: 0.15rem; padding: 0 0.5rem; }
 .marca b { font: 800 1.35rem/1 var(--font-display); color: #fff; }
 .marca span { font-size: 0.8125rem; opacity: 0.8; }
-.rail nav { display: flex; flex-direction: column; gap: 0.15rem; }
-.rail a { display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.6rem; border-radius: 8px; text-decoration: none; color: var(--rail-ink); font-weight: 500; }
+.rail nav { display: flex; flex-direction: column; gap: 0.1rem; }
+@media (min-width: 821px) and (max-height: 760px) { .rail a { padding: 0.32rem 0.6rem; font-size: 0.9rem; } .rail { gap: 0.7rem; padding-top: 0.9rem; } .marca span { display: none; } }
+.rail a { display: flex; align-items: center; gap: 0.65rem; padding: 0.42rem 0.6rem; border-radius: 8px; text-decoration: none; color: var(--rail-ink); font-weight: 500; }
 .rail a:hover { background: rgba(255, 255, 255, 0.08); }
 .rail a[aria-current='page'] { background: #fff; color: var(--rail); font-weight: 700; }
 .rail svg { width: 1.15rem; height: 1.15rem; flex: none; }
