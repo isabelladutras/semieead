@@ -1,25 +1,21 @@
-// Configuração da sincronização entre navegadores (opcional).
+// Configuração da sincronização do Painel acadêmico.
 //
-// Deixe como está (null) para o painel continuar funcionando como hoje: cada navegador com seu
-// próprio rascunho, publicado manualmente pelo botão "Baixar data.js para publicar".
+// FIREBASE_CONFIG: o mesmo projeto do sistema de leads (leads-unifecaf). Login por e-mail e senha;
+// quem acessa é definido pelas regras do Firestore (administradora + função Permanência na Equipe).
 //
-// Para que as alterações de uma coordenadora apareçam automaticamente para as outras, crie um
-// projeto gratuito em https://console.firebase.google.com (leva uns 5 minutos, veja o passo a
-// passo no README, seção "Sincronizar entre navegadores") e cole aqui o objeto de configuração
-// que o Firebase te dá — algo como:
+// FIREBASE_CONFIG_ANTIGO: o banco antigo do painel (polo-1740). Usado uma única vez, para copiar os
+// dados para o banco novo no primeiro acesso. Depois da cópia, pode ser removido.
 //
-// window.FIREBASE_CONFIG = {
-//   apiKey: "AIzaSy...",
-//   authDomain: "polo1740.firebaseapp.com",
-//   projectId: "polo1740",
-//   storageBucket: "polo1740.appspot.com",
-//   messagingSenderId: "...",
-//   appId: "..."
-// };
-//
-// Essas chaves não são secretas (o Firebase foi desenhado para isso) — quem protege os dados são
-// as regras de segurança do banco, explicadas no mesmo passo a passo.
+// Essas chaves não são secretas; quem protege os dados são as regras de segurança do banco.
 window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB1CJdk19P4zWobK18F3MMnbDoccVWBNHM",
+  authDomain: "leads-unifecaf.firebaseapp.com",
+  projectId: "leads-unifecaf",
+  storageBucket: "leads-unifecaf.firebasestorage.app",
+  messagingSenderId: "618199075796",
+  appId: "1:618199075796:web:ddbbeb681c30c80545a441"
+};
+window.FIREBASE_CONFIG_ANTIGO = {
   apiKey: "AIzaSyDK23BDQ0RJ41sosvFnQ7_c1MY9PEHv6u4",
   authDomain: "polo-1740.firebaseapp.com",
   projectId: "polo-1740",
@@ -27,3 +23,5 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "793828338382",
   appId: "1:793828338382:web:ab14cf4bc5dd0b64353e9f"
 };
+// Link do sistema de leads e alunos (aparece no menu do painel).
+window.LINK_SISTEMA_LEADS = "https://isabelladutras.github.io/leadsunifecaf/";

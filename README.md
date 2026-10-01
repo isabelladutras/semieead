@@ -14,6 +14,15 @@ Em **Dados**, no fim da página, fica o campo "Seu nome" e a lista **Atividade r
 
 No menu, abaixo das abas, ficam dois atalhos que abrem em outra aba: **Permanência** (`permanencia.app.unifecaf.edu.br`) e **Links úteis** (`conteudo.unifecaf.com.br/polos-links-uteis`).
 
+## Login e dados (desde 30/09/2026)
+
+O painel agora usa o mesmo Firebase do sistema de leads (`leads-unifecaf`), com login por e-mail e senha.
+
+- **Quem entra:** a administradora e as pessoas com função **Permanência** na aba **Equipe** do sistema de leads. Elas usam o mesmo e-mail e senha nos dois sistemas; no primeiro acesso, clicam em "Primeiro acesso: criar minha senha".
+- **Dados:** ficam em `academico/estado`. No primeiro login, o painel copia sozinho tudo o que estava no banco antigo (`polo-1740`).
+- **Alunos:** a aba **Alunos** mostra os matriculados pelo comercial no sistema de leads, e **Dados › Matrículas por turma** soma essas matrículas às da lista da sede.
+- As instruções abaixo sobre "modo de teste" são da versão anterior e não valem mais.
+
 ## Novas abas: Ocorrências, Estoque e Tarefas
 
 Essas três abas substituem as planilhas que a coordenação usava separadamente. Os dados ficam salvos como tudo mais no painel (neste navegador, ou sincronizados entre navegadores se a sincronização estiver ativa).

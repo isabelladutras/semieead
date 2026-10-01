@@ -44,7 +44,7 @@
     estoque: LS.get('estoque', null) || (DATA.estoque || []).map(function (e) { return Object.assign({}, e); }),
     afazeres: LS.get('afazeres', null) || (DATA.afazeres || []).map(function (t) { return Object.assign({}, t); })
   };
-  const V = { view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorResolvidas: false, afazerFeitas: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
+  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorResolvidas: false, afazerFeitas: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
   const D = {};
 
   const PROF_CORES = { Marcelo: '#2454c5', Marcos: '#c2410c', Michele: '#b0245a', Olavo: '#6b3fc4', Rafael: '#0e7490', Vitor: '#4d7c0f', 'Fabrício': '#7a6f5b' };
@@ -112,10 +112,14 @@
     linksUteis: '<path d="M10 14a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0L5.7 12.6a4 4 0 0 0 5.7 5.7l1-1"/>',
     ocorrencias: '<path d="M12 9v4M12 16.5v.01"/><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
     estoque: '<path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>',
-    afazeres: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="m8 15 2.5 2.5L16 12"/>'
+    afazeres: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="m8 15 2.5 2.5L16 12"/>',
+    alunos: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
+    leads: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>'
   };
   const VIEWS = [
     { id: 'semana', nome: 'Semana' }, { id: 'calendario', nome: 'Calendário' }, { id: 'professores', nome: 'Professores' },
+    { id: 'alunos', nome: 'Alunos' },
     { id: 'conferencia', nome: 'Conferência' }, { id: 'rotina', nome: 'Rotina do mês' }, { id: 'praticas', nome: 'Práticas EAD' },
     { id: 'ocorrencias', nome: 'Ocorrências' }, { id: 'estoque', nome: 'Estoque' }, { id: 'afazeres', nome: 'Tarefas' },
     { id: 'buscar', nome: 'Buscar' }, { id: 'guia', nome: 'Guia rápido' }, { id: 'dados', nome: 'Dados' }
@@ -123,7 +127,8 @@
   // Links externos fixos do dia a dia da coordenação (abrem em outra aba; não fazem parte da navegação por hash).
   const EXT_LINKS = [
     { id: 'permanencia', nome: 'Permanência', url: L.LINKS.permanencia },
-    { id: 'linksUteis', nome: 'Links úteis', url: L.LINKS.linksUteis }
+    { id: 'linksUteis', nome: 'Links úteis', url: L.LINKS.linksUteis },
+    { id: 'leads', nome: 'Sistema de leads', url: window.LINK_SISTEMA_LEADS || 'https://isabelladutras.github.io/leadsunifecaf/' }
   ];
   function svg(id) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[id] + '</svg>'; }
 
@@ -771,16 +776,87 @@
       }).join('') + '</section>';
   }
 
+  /* ---------- Alunos (vindos do sistema de leads) ---------- */
+  function mapCurso(txt) {
+    const n = L.norm(txt); if (!n) return 'Curso não informado';
+    if (n.indexOf('psicoped') >= 0) return 'Psicopedagogia';
+    if (n.indexOf('pedag') >= 0) return 'Pedagogia';
+    if (n.indexOf('biomed') >= 0) return 'Biomedicina';
+    if (n.indexOf('farm') >= 0) return 'Farmácia';
+    if (n.indexOf('terapia') >= 0 || n.indexOf('ocupac') >= 0 || n === 'to') return 'Terapia Ocupacional';
+    if (n.indexOf('fisio') >= 0) return 'Fisioterapia';
+    if (n.indexOf('nutri') >= 0) return 'Nutrição';
+    if (n.indexOf('radio') >= 0) return 'Radiologia';
+    if (n.indexOf('estet') >= 0) return 'Estética e Cosmética';
+    if (n.indexOf('servico social') >= 0) return 'Serviço Social';
+    if (n.indexOf('fisica') >= 0 || n.indexOf('ed fis') >= 0) return n.indexOf('bach') >= 0 ? 'Educação Física Bacharelado' : 'Educação Física Licenciatura';
+    const k = Object.keys(L.CURSOS).find(function (c) { return n === c || n.indexOf(c) >= 0; });
+    return k ? L.CURSOS[k].nome : String(txt).trim();
+  }
+  function coorteDe(iso) { if (!iso) return ''; const m = Number(iso.slice(5, 7)); return iso.slice(0, 4) + '.' + (m <= 6 ? 1 : 2); }
+  function alunosCRM() {
+    return (V.alunos || []).map(function (a) {
+      const curso = mapCurso(a.curso), dm = String(a.dataMatricula || a.matriculadoEm || '').slice(0, 10);
+      return { id: a.id, nome: a.nome || '', tel: a.telefone || '', curso: curso, cursoOrig: a.curso || '', grupo: L.grupoMatricula(curso), coorte: coorteDe(dm), data: dm,
+        vend: a.responsavel || '', risco: !!a.risco, avisado: !!a.riscoAvisado, venc: a.diaVencimento || '', notas: a.notas || [] };
+    });
+  }
+  function viewAlunos() {
+    const topo = '<div class="topo"><div><h1>Alunos</h1><p>Alunos matriculados pelo comercial no sistema de leads. A lista se atualiza sozinha quando uma vendedora marca uma matrícula.</p></div></div>';
+    if (V.alunos === null) return topo + '<section class="bloco"><p class="muted">' + (V.syncStatus === 'login' ? 'Entre com seu e-mail e senha para ver os alunos.' : 'Carregando alunos…') + '</p></section>';
+    const todos = alunosCRM();
+    const grupos = Array.from(new Set(todos.map(function (a) { return a.grupo; }))).sort();
+    const coortes = Array.from(new Set(todos.map(function (a) { return a.coorte; }).filter(Boolean))).sort().reverse();
+    const q = L.norm(V.aBusca);
+    const lista = todos.filter(function (a) {
+      return (!V.aCurso || a.grupo === V.aCurso) && (!V.aCoorte || a.coorte === V.aCoorte) && (!V.aRisco || a.risco) &&
+        (!q || L.norm(a.nome).indexOf(q) >= 0 || L.norm(a.cursoOrig).indexOf(q) >= 0 || String(a.tel).replace(/\D/g, '').indexOf(q.replace(/\D/g, '') || '§') >= 0);
+    }).sort(function (x, y) { return (y.risco && !y.avisado) - (x.risco && !x.avisado) || y.risco - x.risco || x.nome.localeCompare(y.nome); });
+    const emRisco = todos.filter(function (a) { return a.risco; }).length, semAviso = todos.filter(function (a) { return a.risco && !a.avisado; }).length;
+    const porCoorte = coortes.map(function (c) { return esc(c) + ': <b>' + todos.filter(function (a) { return a.coorte === c; }).length + '</b>'; }).join(' · ');
+    const linhas = lista.map(function (a) {
+      const nota = a.notas.length ? a.notas[a.notas.length - 1] : null;
+      return '<tr' + (a.risco ? ' class="risco"' : '') + '><td><b>' + esc(a.nome) + '</b>' + (a.tel ? '<br><span class="muted small">' + esc(L.fmtTel(a.tel)) + '</span>' : '') + (nota ? '<br><span class="muted small">Nota: ' + esc(nota.texto) + '</span>' : '') + '</td>' +
+        '<td>' + esc(a.curso) + (a.cursoOrig && L.norm(a.cursoOrig) !== L.norm(a.curso) ? '<br><span class="muted small">no cadastro: ' + esc(a.cursoOrig) + '</span>' : '') + '</td>' +
+        '<td>' + esc(a.coorte || '—') + '</td><td>' + (a.data ? esc(L.fmtBR ? L.fmtBR(a.data) : a.data) : '—') + '</td>' +
+        '<td>' + esc(a.venc ? 'dia ' + a.venc : '—') + '</td><td>' + esc(a.vend || '—') + '</td>' +
+        '<td>' + (a.risco ? (a.avisado ? '<span class="badge atencao">Em risco · em tratamento</span>' : '<span class="badge erro">Em risco</span>') : '<span class="badge ok">Ok</span>') + '</td>' +
+        '<td>' + (a.tel ? '<a class="btn" href="' + esc(L.waUrl(a.tel, 'Oi, ' + a.nome.split(' ')[0] + '! ')) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') + '</td></tr>';
+    }).join('');
+    return topo +
+      '<section class="bloco"><p><b>' + plural(todos.length, 'aluno matriculado', 'alunos matriculados') + '</b> · ' + (emRisco ? '<span class="badge erro">' + emRisco + ' em risco</span>' + (semAviso ? ' <span class="muted small">(' + semAviso + ' ainda sem tratamento)</span>' : '') : 'nenhum em risco') + (porCoorte ? '<br><span class="muted small">Por turma de ingresso: ' + porCoorte + '</span>' : '') + '</p></section>' +
+      '<div class="filtros"><div><label for="a-curso">Curso</label><select id="a-curso" data-chg="aCurso"><option value="">Todos</option>' + grupos.map(function (g) { return '<option' + (g === V.aCurso ? ' selected' : '') + '>' + esc(g) + '</option>'; }).join('') + '</select></div>' +
+      '<div><label for="a-coorte">Turma de ingresso</label><select id="a-coorte" data-chg="aCoorte"><option value="">Todas</option>' + coortes.map(function (c) { return '<option' + (c === V.aCoorte ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
+      '<div><label for="a-busca">Buscar</label><input type="search" id="a-busca" value="' + esc(V.aBusca) + '" placeholder="Nome, curso ou telefone"></div>' +
+      '<div><label class="check"><input type="checkbox" data-chg="aRisco"' + (V.aRisco ? ' checked' : '') + '> Só em risco</label></div></div>' +
+      (lista.length ? '<div class="rolagem"><table class="tabela"><thead><tr><th>Aluno</th><th>Curso</th><th>Turma</th><th>Matrícula</th><th>Boleto</th><th>Vendedora</th><th>Situação</th><th></th></tr></thead><tbody>' + linhas + '</tbody></table></div>'
+        : '<section class="bloco"><p class="muted">' + (todos.length ? 'Nenhum aluno com esses filtros.' : 'Nenhum aluno matriculado no sistema de leads ainda.') + '</p></section>') +
+      '<p class="muted small" style="margin-top:.8rem">A turma de ingresso vem da data da matrícula (janeiro a junho = .1, julho a dezembro = .2). Para registrar contatos e marcar o tratamento de alunos em risco, use o <a href="' + esc(window.LINK_SISTEMA_LEADS || 'https://isabelladutras.github.io/leadsunifecaf/') + '" target="_blank" rel="noopener">sistema de leads</a> (aba Pós-matrícula).</p>';
+  }
+
   /* ---------- Dados ---------- */
   function contatosTexto() { return Object.keys(S.contatos).map(function (n) { return n + ' ' + S.contatos[n]; }).join('\n'); }
   function blocoMatriculas() {
     const resumo = S.matriculas ? L.resumoMatriculas(S.matriculas) : null;
-    const atuais = resumo ? resumo.grupos.filter(function (g) { return g.coorte === '2026.1' || g.coorte === '2026.2'; }) : [];
+    const COORTES = ['2026.1', '2026.2'];
+    const sede = resumo ? resumo.grupos.filter(function (g) { return COORTES.indexOf(g.coorte) >= 0; }) : [];
+    // Matrículas do comercial que ainda não aparecem na lista da sede (comparação pelo nome, dentro do mesmo grupo e turma).
+    const crm = alunosCRM().filter(function (a) { return COORTES.indexOf(a.coorte) >= 0; });
+    const mapa = {};
+    sede.forEach(function (g) { mapa[g.grupo + '|' + g.coorte] = Object.assign({}, g, { comercial: 0 }); });
+    crm.forEach(function (a) {
+      const k = a.grupo + '|' + a.coorte;
+      if (!mapa[k]) mapa[k] = { grupo: a.grupo, coorte: a.coorte, total: 0, realocados: 0, alunos: [], comercial: 0 };
+      const jaNaSede = (mapa[k].alunos || []).some(function (x) { return L.norm(x.nome) === L.norm(a.nome); });
+      if (!jaNaSede) mapa[k].comercial++;
+    });
+    const atuais = Object.keys(mapa).map(function (k) { return mapa[k]; }).sort(function (a, b) { return (a.total + a.comercial) - (b.total + b.comercial); });
     const linhas = atuais.map(function (g) {
       const chave = g.grupo + '|' + g.coorte, cfg = S.turmaCfg[chave] || {};
-      const corte = cfg.corte != null ? cfg.corte : 15, formada = !!cfg.formada, risco = !formada && g.total < corte;
+      const soma = g.total + g.comercial;
+      const corte = cfg.corte != null ? cfg.corte : 15, formada = !!cfg.formada, risco = !formada && soma < corte;
       return '<tr' + (risco ? ' class="risco"' : '') + '><td>' + esc(g.grupo) + '<br><span class="muted small">' + esc(g.coorte) + '</span></td>' +
-        '<td>' + g.total + (g.realocados ? ' <span class="muted small">(' + g.realocados + ' realocado' + (g.realocados > 1 ? 's' : '') + ')</span>' : '') + '</td>' +
+        '<td><b>' + soma + '</b><br><span class="muted small">' + g.total + ' na lista da sede' + (g.comercial ? ' + ' + g.comercial + ' do comercial' : '') + '</span>' + (g.realocados ? ' <span class="muted small">(' + g.realocados + ' realocado' + (g.realocados > 1 ? 's' : '') + ')</span>' : '') + '</td>' +
         '<td><input type="number" min="1" max="99" data-chg="matr-corte" data-key="' + esc(chave) + '" value="' + corte + '" style="width:4.5rem"></td>' +
         '<td><label class="check"><input type="checkbox" data-chg="matr-formada" data-key="' + esc(chave) + '"' + (formada ? ' checked' : '') + '>Já formada</label></td>' +
         '<td>' + (risco ? '<span class="badge atencao">Abaixo do corte</span>' : formada ? '<span class="badge ok">Formada</span>' : '<span class="badge ok">Dentro do corte</span>') + '</td></tr>';
@@ -790,8 +866,8 @@
       '<div class="acoes"><button type="button" class="btn primario" data-act="importar-matriculas">Importar lista de matrículas (.xlsx)</button>' +
       (S.matriculas ? '<span class="muted small" style="align-self:center">' + plural(resumo.totalAlunos, 'aluno', 'alunos') + ' na última importação</span>' : '') + '</div>' +
       '<input type="file" id="arquivo-matriculas" accept=".xlsx,.xls" hidden>' +
-      (linhas ? '<div class="rolagem" style="margin-top:.8rem"><table class="tabela"><thead><tr><th>Turma (grupo)</th><th>Matriculados</th><th>Corte mínimo</th><th></th><th></th></tr></thead><tbody>' + linhas + '</tbody></table></div>' :
-        '<p class="muted small" style="margin-top:.6rem">' + (S.matriculas ? 'Nenhum grupo de 2026.1/2026.2 encontrado nessa lista.' : 'Nenhuma lista importada ainda.') + '</p>') + '</section>';
+      (linhas ? '<p class="muted small" style="margin-top:.6rem">Matriculados = lista da sede + matrículas registradas pelo comercial no sistema de leads que ainda não aparecem na lista da sede (comparadas pelo nome).</p><div class="rolagem" style="margin-top:.4rem"><table class="tabela"><thead><tr><th>Turma (grupo)</th><th>Matriculados</th><th>Corte mínimo</th><th></th><th></th></tr></thead><tbody>' + linhas + '</tbody></table></div>' :
+        '<p class="muted small" style="margin-top:.6rem">' + (S.matriculas ? 'Nenhum grupo de 2026.1/2026.2 encontrado nessa lista.' : 'Nenhuma lista da sede importada e nenhuma matrícula do comercial em 2026.1/2026.2 ainda.') + '</p>') + '</section>';
   }
   function viewDados() {
     const rascunho = !!LS.get('rows', null), sinc = Sync.configured();
@@ -1016,6 +1092,7 @@
   /* ---------- Ações ---------- */
   const ACTS = {
     fechar: function () { fecharDlg(); },
+    sair: function (el, e) { if (e) e.preventDefault(); if (Sync.sair) Sync.sair(); },
     grupo: function (el) { abrirGrupo(el.dataset.key); },
     dia: function (el) { abrirDia(el.dataset.iso); },
     'sem-prev': function () { V.semana = L.addDays(V.semana, -7); render(); },
@@ -1141,6 +1218,9 @@
   };
   const CHG = {
     fCurso: function (el) { V.fCurso = el.value; render(); },
+    aCurso: function (el) { V.aCurso = el.value; render(); },
+    aCoorte: function (el) { V.aCoorte = el.value; render(); },
+    aRisco: function (el) { V.aRisco = el.checked; render(); },
     fProf: function (el) { V.fProf = el.value; render(); },
     passado: function (el) { V.passado = el.checked; render(); },
     pratPassado: function (el) { V.pratPassado = el.checked; render(); },
@@ -1187,6 +1267,7 @@
   });
   document.addEventListener('input', function (e) {
     if (e.target.id === 'msgTxt') atualizarWa();
+    if (e.target.id === 'a-busca') { V.aBusca = e.target.value; clearTimeout(V.aBuscaT); V.aBuscaT = setTimeout(function () { render(); const i = $('#a-busca'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250); }
     if (e.target.id === 'busca-q') {
       V.busca = e.target.value;
       const alvo = $('#busca-resultados');
@@ -1195,7 +1276,7 @@
   });
 
   /* ---------- Render e rotas ---------- */
-  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, ocorrencias: viewOcorrencias, estoque: viewEstoque, afazeres: viewAfazeres, buscar: viewBusca, guia: viewGuia, dados: viewDados };
+  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, ocorrencias: viewOcorrencias, estoque: viewEstoque, afazeres: viewAfazeres, buscar: viewBusca, guia: viewGuia, dados: viewDados, alunos: viewAlunos };
   function banner() {
     if (Sync.configured()) return '';
     const rascunho = LS.get('rows', null), base = LS.get('rowsBase', '');
@@ -1211,10 +1292,10 @@
       return '<a href="#' + v.id + '"' + (v.id === id ? ' aria-current="page"' : '') + '>' + svg(v.id) + v.nome + (v.id === 'conferencia' && nErr ? '<span class="n" title="Erros de hoje em diante e decisões pendentes">' + nErr + '</span>' : '') + '</a>';
     }).join('') + '<hr class="sep-nav">' + EXT_LINKS.map(function (l) {
       return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" class="nav-ext">' + svg(l.id) + l.nome + '</a>';
-    }).join('');
+    }).join('') + (Sync.email && Sync.email() ? '<a href="#" class="nav-ext" data-act="sair" title="' + esc(Sync.email()) + '">' + svg('sair') + 'Sair</a>' : '');
     const foot = $('.rodape');
     if (foot) {
-      const rotFoot = { 'sem-config': 'Os dados ficam neste navegador. Para publicar mudanças, use Dados › Baixar data.js.', conectando: 'Conectando à sincronização entre navegadores…', sincronizado: 'Sincronizado: as alterações aparecem para toda a equipe.', erro: 'Não consegui sincronizar agora. Os dados continuam salvos neste navegador.' };
+      const rotFoot = { login: 'Entre com seu e-mail e senha para carregar os dados da equipe.', 'sem-acesso': 'Seu e-mail ainda não tem acesso ao painel.', 'sem-config': 'Os dados ficam neste navegador. Para publicar mudanças, use Dados › Baixar data.js.', conectando: 'Conectando à sincronização entre navegadores…', sincronizado: 'Sincronizado: as alterações aparecem para toda a equipe.', erro: 'Não consegui sincronizar agora. Os dados continuam salvos neste navegador.' };
       foot.textContent = Sync.configured() ? rotFoot[V.syncStatus] : (rasc ? 'Rascunho local: as mudanças ainda não foram publicadas. Dados › Baixar data.js.' : rotFoot['sem-config']);
     }
     const app = $('#app'); app.innerHTML = banner() + RENDER[id]();
@@ -1261,6 +1342,7 @@
 
   recalc();
   Sync.init(aplicarRemoto, function (status) { V.syncStatus = status; render(); }, estadoAtual);
+  if (Sync.onAlunos) Sync.onAlunos(function (lista) { V.alunos = lista; if (V.view === 'alunos' || V.view === 'dados') render(); });
   rota();
   window.__painel = { S: S, D: D, V: V, render: render, recalc: recalc, abrirGrupo: abrirGrupo, abrirEditar: abrirEditar };
 })();
