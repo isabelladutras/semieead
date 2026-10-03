@@ -86,6 +86,11 @@ pre.msg{white-space:pre-wrap;font-family:var(--body);font-size:.85rem;background
 .empty{color:var(--muted);text-align:center;padding:32px 0}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.85rem;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
+.login{background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:12px;margin-top:16px;display:grid;gap:8px}
+.lf{display:flex;flex-wrap:wrap;gap:8px}
+.lf input{flex:1 1 180px;min-width:0;font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.who-bar{margin-top:10px;font-size:.82rem;color:var(--muted)}
+.linkbtn{font:inherit;background:none;border:0;color:var(--accent);cursor:pointer;padding:0;text-decoration:underline}
 @media (max-width:720px){
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
   li.row{grid-template-columns:minmax(0,1fr)}
@@ -94,6 +99,10 @@ pre.msg{white-space:pre-wrap;font-family:var(--body);font-size:.85rem;background
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="sync-config.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -105,9 +114,19 @@ pre.msg{white-space:pre-wrap;font-family:var(--body);font-size:.85rem;background
     <span class="sync" id="sync">Conectando…</span>
   </header>
 
+  <section class="login" id="login" hidden>
+    <div><b>Entre com o mesmo login do painel acadêmico</b><div class="meta">Se você já entrou no painel neste navegador, este quadro some sozinho.</div></div>
+    <form class="lf" id="loginForm">
+      <input type="email" id="email" placeholder="E-mail" autocomplete="username" required aria-label="E-mail">
+      <input type="password" id="senha" placeholder="Senha" autocomplete="current-password" required aria-label="Senha">
+      <button class="btn wa" type="submit">Entrar</button>
+    </form>
+    <div class="meta" id="loginErr" hidden style="color:var(--warn)"></div>
+  </section>
+  <div class="who-bar" id="who" hidden>Conectada como <b id="whoName"></b> · <button type="button" class="linkbtn" id="sair">Sair</button></div>
   <div class="stats" id="stats"></div>
 
-  <div class="tip"><b>Como enviar:</b> clique em <b>Abrir WhatsApp</b>, confira a mensagem e envie. Depois marque <b>Enviado</b>. Se o WhatsApp não abrir com o texto, use <b>Copiar mensagem</b> e cole na conversa. O status fica salvo neste navegador.</div>
+  <div class="tip"><b>Como enviar:</b> clique em <b>Abrir WhatsApp</b>, confira a mensagem e envie. Depois marque <b>Enviado</b>. Se o WhatsApp não abrir com o texto, use <b>Copiar mensagem</b> e cole na conversa. O status fica salvo no banco e aparece ao vivo para todo o time.</div>
 
   <div class="controls">
     <div class="seg" role="group" aria-label="Situação do envio" id="segStatus">
@@ -188,7 +207,7 @@ function paintRow(r){
   [e,p,sel].forEach(x=>{if(x) x.disabled=!canWrite});
   const by=li.querySelector('.by');
   if(s.enviado && s.em){
-    const d=new Date(s.em); const who=s.por&&names[s.por]?names[s.por]:'';
+    const d=new Date(s.em); const who=s.por||'';
     by.textContent='Enviado '+(who?'por '+who+' ':'')+'em '+d.toLocaleDateString('pt-BR')+' às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     by.hidden=false;
   } else by.hidden=true;
@@ -229,16 +248,53 @@ async function copy(t){
   catch(e){toast('Não deu para copiar. Abra "Ver mensagem" e selecione o texto.')}
 }
 
-/* ---------- persistence (navegador) ---------- */
-const KEY='disparos_sjc_v1';
-function persist(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){toast('Não foi possível salvar neste navegador')}}
+/* ---------- persistence (Firebase do painel: leads-unifecaf) ---------- */
+const COL='disparos_sjc', LKEY='disparos_sjc_v1', SEED={"233036": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Confirmado"}, "127743": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "178171": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "192132": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Confirmado"}, "142518": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Não vai"}, "228812": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "119332": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Confirmado"}, "191884": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Confirmado"}, "133420": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "191152": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "229272": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "187907": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "297447": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "105636": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "242989": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "83511": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "286622": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "178930": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}};
+let fs=null, me='', ready=false;
 function save(ra,patch){
   const cur=Object.assign({},st[ra]||{},patch);
-  if('enviado' in patch){ if(patch.enviado) cur.em=new Date().toISOString(); else delete cur.em; }
-  st[ra]=cur; persist(); render();
+  if('enviado' in patch){ if(patch.enviado){cur.em=new Date().toISOString(); cur.por=me;} else {delete cur.em; delete cur.por;} }
+  st[ra]=cur; render();
+  if(!fs||!ready){toast('Entre com seu login para salvar');return}
+  fs.collection(COL).doc(ra).set(cur).catch(e=>{
+    toast(e&&e.code==='permission-denied'?'Sem permissão para salvar. Veja o aviso no topo.':'Não salvou. Verifique a internet e tente de novo.');
+    if(e&&e.code==='permission-denied') denied();
+  });
 }
-(function(){let raw=null;try{raw=localStorage.getItem(KEY)}catch(e){}
-  if(raw){try{Object.assign(st,JSON.parse(raw))}catch(e){}} else {Object.assign(st,{"233036": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Confirmado"}, "127743": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "178171": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "192132": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Confirmado"}, "142518": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Não vai"}, "228812": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "119332": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Confirmado"}, "191884": {"enviado": true, "em": "2026-10-03T12:00:00.000Z", "inauguracao": "Confirmado"}, "133420": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "191152": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "229272": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "187907": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "297447": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "105636": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "242989": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "83511": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "286622": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}, "178930": {"enviado": true, "em": "2026-10-03T12:00:00.000Z"}});persist()}})();
+function denied(){const s=$('#sync');s.textContent='Sem permissão no banco: falta liberar a coleção disparos_sjc nas regras do Firestore';s.classList.add('off')}
+async function migrateLocal(snapEmpty){
+  // envia o que já foi marcado nesta máquina (versão antiga da página) e, se o banco estiver vazio, os 18 já chamados
+  let local={}; try{local=JSON.parse(localStorage.getItem(LKEY)||'{}')}catch(e){}
+  const src=Object.assign({}, snapEmpty?SEED:{}, local);
+  const ids=Object.keys(src).filter(ra=>!st[ra]);
+  if(!ids.length) return;
+  const batch=fs.batch(); ids.forEach(ra=>batch.set(fs.collection(COL).doc(ra),src[ra]));
+  try{await batch.commit(); try{localStorage.removeItem(LKEY)}catch(e){} toast(ids.length+' marcações enviadas para o banco')}catch(e){if(e&&e.code==='permission-denied') denied()}
+}
+function startFirebase(){
+  if(!window.firebase||!window.FIREBASE_CONFIG){$('#sync').textContent='Não carregou o Firebase. Recarregue a página.';$('#sync').classList.add('off');return}
+  const app=firebase.apps.length?firebase.app():firebase.initializeApp(window.FIREBASE_CONFIG);
+  fs=firebase.firestore();
+  firebase.auth().onAuthStateChanged(u=>{
+    $('#login').hidden=!!u; $('#who').hidden=!u;
+    if(!u){ready=false;$('#sync').textContent='Entre para ver e salvar os envios';return}
+    me=(u.displayName||u.email||'').split('@')[0]; $('#whoName').textContent=u.email||me;
+    $('#sync').textContent='Conectando ao banco…';
+    let first=true;
+    fs.collection(COL).onSnapshot(snap=>{
+      snap.docChanges().forEach(ch=>{ if(ch.type==='removed') delete st[ch.doc.id]; else st[ch.doc.id]=Object.assign({},ch.doc.data()) });
+      ready=true; $('#sync').textContent='Salvo no banco · ao vivo para todo o time'; $('#sync').classList.remove('off');
+      render();
+      if(first){first=false; migrateLocal(snap.empty)}
+    },e=>{ if(e&&e.code==='permission-denied') denied(); else {$('#sync').textContent='Conexão com o banco caiu. Recarregue a página.';$('#sync').classList.add('off')} });
+  });
+  $('#loginForm').addEventListener('submit',async ev=>{
+    ev.preventDefault(); const err=$('#loginErr'); err.hidden=true;
+    try{await firebase.auth().signInWithEmailAndPassword($('#email').value.trim(),$('#senha').value)}
+    catch(e){err.textContent='E-mail ou senha incorretos.';err.hidden=false}
+  });
+  $('#sair').addEventListener('click',()=>firebase.auth().signOut());
+}
 ROWS.forEach(r=>$('#list').appendChild(buildRow(r)));
 render();
 
@@ -246,7 +302,7 @@ document.querySelectorAll('#segStatus button').forEach(b=>b.addEventListener('cl
   fStatus=b.dataset.v;document.querySelectorAll('#segStatus button').forEach(x=>x.setAttribute('aria-pressed',x===b));render()}));
 let qt;$('#q').addEventListener('input',e=>{clearTimeout(qt);qt=setTimeout(()=>{q=norm(e.target.value.trim());render()},120)});
 
-$('#sync').textContent='Status salvo neste navegador';
+startFirebase();
 })();
 </script>
 
