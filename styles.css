@@ -193,6 +193,18 @@ select.inline { width: auto; }
 .pitem li .linkbtn { font-size: 0.8125rem; font-weight: 500; }
 .pitem li.ignorado { opacity: 0.6; }
 .pitem li.ignorado .badge { text-decoration: line-through; }
+.pitem.ok { border-left-color: var(--ok); }
+
+.subnav-ocor { gap: 0.5rem; margin-bottom: 0.8rem; }
+.subnav-ocor .btn.sm.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+.lista-atualizacoes-ocor { max-height: none; margin: 0.5rem 0 0; }
+.lista-atualizacoes-ocor li { padding: 0.35rem 0; }
+.lista-atualizacoes-ocor li div { margin-top: 0.15rem; }
+
+.campo-atualizacao-ocor { margin-top: 0.5rem; display: grid; gap: 0.35rem; }
+.campo-atualizacao-ocor textarea { width: 100%; resize: vertical; font: inherit; padding: 0.4rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
+.campo-atualizacao-ocor .btn { justify-self: start; }
 
 /* Rotina */
 .linha-tempo { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.7rem; }

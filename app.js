@@ -44,7 +44,7 @@
     estoque: LS.get('estoque', null) || (DATA.estoque || []).map(function (e) { return Object.assign({}, e); }),
     afazeres: LS.get('afazeres', null) || (DATA.afazeres || []).map(function (t) { return Object.assign({}, t); })
   };
-  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorResolvidas: false, afazerFeitas: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
+  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', afazerFeitas: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
   const D = {};
 
   const PROF_CORES = { Marcelo: '#2454c5', Marcos: '#c2410c', Michele: '#b0245a', Olavo: '#6b3fc4', Rafael: '#0e7490', Vitor: '#4d7c0f', 'Fabrício': '#7a6f5b' };
@@ -438,12 +438,26 @@
   /* ---------- Ocorrências de alunos ---------- */
   const OCOR_CATEGORIAS = ['Alterações Cadastrais', 'Alterações Financeiras', 'Análise Curricular', 'Análise Documental', 'Cobrança', 'Cancelamento', 'Lançamento de notas', 'Transferência de Polo', 'Mudança de Eixo', 'Outros Acadêmico'];
   const OCOR_RESPONSAVEIS = ['Resolvido', 'P. Aluno', 'P. Aline', 'P. Naiane', 'P. Suporte Acadêmico', 'P. Suporte Financeiro', 'P. Gerência FECAF', 'P. Gerência F5'];
+  /* Histórico de respostas/atualizações de uma ocorrência: cada item tem o texto, quem anotou e
+     quando — nunca apaga o que já foi escrito, só acrescenta (igual o "Atividade recente"). */
+  function atualizacoesDaOcorrencia(o) {
+    return (o.atualizacoes || []).slice().sort(function (a, b) { return (b.data || '').localeCompare(a.data || ''); });
+  }
+  function listaAtualizacoesHTML(o) {
+    const itens = atualizacoesDaOcorrencia(o);
+    if (!itens.length) return '';
+    return '<ul class="lista-atividade lista-atualizacoes-ocor">' + itens.map(function (a) {
+      return '<li><span class="muted small">' + esc(relTempo(a.data)) + '</span> · <b>' + esc(a.autor || 'Alguém') + '</b><div>' + esc(a.texto) + '</div></li>';
+    }).join('') + '</ul>';
+  }
   function viewOcorrencias() {
     const todas = S.ocorrencias || [];
     const abertas = todas.filter(function (o) { return o.responsavel !== 'Resolvido'; });
-    const visiveis = (V.ocorResolvidas ? todas : abertas).slice().sort(function (a, b) {
+    const resolvidas = todas.filter(function (o) { return o.responsavel === 'Resolvido'; });
+    const aba = V.ocorAba === 'resolvidas' ? 'resolvidas' : 'abertas';
+    const visiveis = (aba === 'resolvidas' ? resolvidas : abertas).slice().sort(function (a, b) {
       const pa = a.prazo || '9999-99-99', pb = b.prazo || '9999-99-99';
-      return (a.responsavel === 'Resolvido' ? 1 : 0) - (b.responsavel === 'Resolvido' ? 1 : 0) || (pa < pb ? -1 : pa > pb ? 1 : 0);
+      return pa < pb ? -1 : pa > pb ? 1 : 0;
     });
     const resp = '<option value="">Escolher</option>' + OCOR_RESPONSAVEIS.map(function (r) { return '<option value="' + esc(r) + '">' + esc(r) + '</option>'; }).join('');
     const cards = visiveis.map(function (o) {
@@ -451,14 +465,21 @@
       const sev = o.responsavel === 'Resolvido' ? 'ok' : (atrasada ? 'erro' : 'atencao');
       return '<article class="pitem ' + sev + '"><div><h3>' + esc(o.aluno || 'Sem nome') + (o.ra ? ' <small class="muted">RA ' + esc(o.ra) + '</small>' : '') + '</h3>' +
         '<div class="meta">' + esc(o.categoria || 'Sem categoria') + (o.dataOcorrencia ? ' · aberta em ' + esc(L.fmtCurta(o.dataOcorrencia)) : '') + (o.prazo ? ' · prazo ' + esc(L.fmtCurta(o.prazo)) + (atrasada ? ' (atrasado)' : '') : '') + (o.solucaoEm ? ' · resolvida em ' + esc(L.fmtCurta(o.solucaoEm)) : '') + '</div>' +
-        (o.evento ? '<p class="small" style="margin:.4rem 0 0">' + esc(o.evento) + '</p>' : '') + '</div>' +
+        (o.evento ? '<p class="small" style="margin:.4rem 0 0">' + esc(o.evento) + '</p>' : '') +
+        listaAtualizacoesHTML(o) +
+        '<div class="campo-atualizacao-ocor"><textarea id="ocor-att-' + esc(o.id) + '" rows="2" placeholder="Registrar nova resposta/atualização…"></textarea>' +
+        '<button type="button" class="btn sm" data-act="ocor-add-att" data-id="' + esc(o.id) + '">Adicionar atualização</button></div>' +
+        '</div>' +
         '<div class="acoes"><select data-chg="ocor-resp" data-id="' + esc(o.id) + '" aria-label="Responsável">' + resp.replace('value="' + esc(o.responsavel || '') + '"', 'value="' + esc(o.responsavel || '') + '" selected') + '</select>' +
         '<button type="button" class="btn sm" data-act="editar-ocorrencia" data-id="' + esc(o.id) + '">Editar</button></div></article>';
     }).join('');
     return '<div class="topo"><div><h1>Ocorrências de alunos</h1><p>Registro de solicitações e problemas de alunos em andamento: quem está tratando, prazo e o que já foi feito.</p></div>' +
       '<div class="acoes nav-sem"><button type="button" class="btn primario" data-act="nova-ocorrencia">Nova ocorrência</button></div></div>' +
-      '<div class="acoes"><label class="check"><input type="checkbox" data-chg="ocorResolvidas"' + (V.ocorResolvidas ? ' checked' : '') + '> Mostrar resolvidas' + (todas.length - abertas.length ? ' (' + (todas.length - abertas.length) + ')' : '') + '</label></div>' +
-      '<div class="pend">' + (cards || '<div class="vazio">Nenhuma ocorrência em aberto.</div>') + '</div>';
+      '<div class="acoes subnav-ocor">' +
+      '<button type="button" class="btn sm' + (aba === 'abertas' ? ' on' : '') + '" data-act="ocor-aba" data-aba="abertas">Abertas (' + abertas.length + ')</button>' +
+      '<button type="button" class="btn sm' + (aba === 'resolvidas' ? ' on' : '') + '" data-act="ocor-aba" data-aba="resolvidas">Resolvidas (' + resolvidas.length + ')</button>' +
+      '</div>' +
+      '<div class="pend">' + (cards || ('<div class="vazio">Nenhuma ocorrência ' + (aba === 'resolvidas' ? 'resolvida ainda' : 'em aberto') + '.</div>')) + '</div>';
   }
   function abrirEditarOcorrencia(id) {
     const novo = !id, o = novo ? null : S.ocorrencias.find(function (x) { return x.id === id; });
@@ -473,7 +494,9 @@
       '<div><label for="o-prazo">Prazo</label><input type="date" id="o-prazo" value="' + esc(o ? o.prazo : '') + '"></div>' +
       '<div><label for="o-sol">Solução em</label><input type="date" id="o-sol" value="' + esc(o ? o.solucaoEm : '') + '"></div>' +
       '<div class="largo"><label for="o-evento">O que aconteceu / andamento</label><textarea id="o-evento" style="min-height:5rem">' + esc(o ? o.evento : '') + '</textarea></div>' +
-      '</div></div>' +
+      '</div>' +
+      (o && atualizacoesDaOcorrencia(o).length ? ('<div class="largo" style="margin-top:.8rem"><label>Histórico de atualizações</label>' + listaAtualizacoesHTML(o) + '</div>') : '') +
+      '</div>' +
       '<footer><button type="button" class="btn primario" data-act="salvar-ocorrencia">Salvar</button>' + (novo ? '' : '<button type="button" class="btn perigo" data-act="excluir-ocorrencia">Excluir</button>') + '<button type="button" class="btn fim" data-act="fechar">Cancelar</button></footer>');
   }
   function salvarOcorrencia() {
@@ -1185,6 +1208,23 @@
     'nova-ocorrencia': function () { abrirEditarOcorrencia(null); },
     'editar-ocorrencia': function (el) { abrirEditarOcorrencia(el.dataset.id); },
     'salvar-ocorrencia': salvarOcorrencia,
+    'ocor-aba': function (el) { V.ocorAba = el.dataset.aba; render(); },
+    /* Registrar uma nova resposta/atualização direto no card, sem precisar abrir "Editar" —
+       guarda o texto, quem anotou (o nome salvo em Config) e quando (data/hora exatas). */
+    'ocor-add-att': function (el) {
+      const id = el.dataset.id;
+      const campo = $('#ocor-att-' + CSS.escape(id));
+      const texto = campo ? campo.value.trim() : '';
+      if (!texto) { toast('Escreva a atualização antes de adicionar'); return; }
+      const o = S.ocorrencias.find(function (x) { return x.id === id; });
+      if (!o) return;
+      o.atualizacoes = o.atualizacoes || [];
+      o.atualizacoes.push({ texto: texto, autor: autorAtual(), data: new Date().toISOString() });
+      LS.set('ocorrencias', S.ocorrencias);
+      registrar('Adicionou atualização em ocorrência', o.aluno);
+      render();
+      toast('Atualização adicionada' + (Sync.configured() ? '' : ' neste navegador'));
+    },
     'excluir-ocorrencia': function () {
       const f = $('#form-ocor'); if (!f) return;
       const id = f.dataset.id; if (!confirm('Excluir esta ocorrência?')) return;
@@ -1225,7 +1265,6 @@
     passado: function (el) { V.passado = el.checked; render(); },
     pratPassado: function (el) { V.pratPassado = el.checked; render(); },
     verIgnorados: function (el) { V.verIgnorados = el.checked; render(); },
-    ocorResolvidas: function (el) { V.ocorResolvidas = el.checked; render(); },
     afazerFeitas: function (el) { V.afazerFeitas = el.checked; render(); },
     'ocor-resp': function (el) { const o = S.ocorrencias.find(function (x) { return x.id === el.dataset.id; }); if (!o) return; o.responsavel = el.value; LS.set('ocorrencias', S.ocorrencias); if (el.value === 'Resolvido' && !o.solucaoEm) o.solucaoEm = HOJE; registrar('Atualizou responsável da ocorrência', o.aluno + ' · ' + (el.value || 'sem responsável')); render(); },
     'estoque-comprar': function (el) { const i = S.estoque.find(function (x) { return x.id === el.dataset.id; }); if (!i) return; i.comprar = el.checked; LS.set('estoque', S.estoque); render(); const n = $('input[data-chg="estoque-comprar"][data-id="' + CSS.escape(i.id) + '"]'); if (n) n.focus(); },
