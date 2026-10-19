@@ -45,7 +45,7 @@
     afazeres: LS.get('afazeres', null) || (DATA.afazeres || []).map(function (t) { return Object.assign({}, t); }),
     provas: LS.get('provas', [])
   };
-  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', afazerFeitas: false, msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false };
+  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', tarefaAba: 'hoje', msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false };
   const D = {};
 
   const PROF_CORES = { Marcelo: '#2454c5', Marcos: '#c2410c', Michele: '#b0245a', Olavo: '#6b3fc4', Rafael: '#0e7490', Vitor: '#4d7c0f', 'Fabrício': '#7a6f5b' };
@@ -74,6 +74,9 @@
 
   /* ---------- Registro de quem mudou o quê ---------- */
   function autorAtual() {
+    // Quando o painel está sincronizado, cada pessoa entra com o próprio e-mail (login da equipe) —
+    // é esse e-mail que identifica quem fez a alteração, não um nome digitado manualmente.
+    if (Sync.configured()) { const em = Sync.email && Sync.email(); if (em) return em; }
     if (!S.cfg.autor) {
       const n = (typeof prompt === 'function') ? prompt('Como você se chama? (aparece no registro de alterações do painel)') : '';
       if (n && n.trim()) { S.cfg.autor = n.trim(); LS.set('cfg', S.cfg); }
@@ -459,7 +462,7 @@
   function listaAtualizacoesHTML(o) {
     const itens = atualizacoesDaOcorrencia(o);
     if (!itens.length) return '';
-    return '<ul class="lista-atividade lista-atualizacoes-ocor">' + itens.map(function (a) {
+    return '<ul class="lista-atividade lista-atualizacoes">' + itens.map(function (a) {
       return '<li><span class="muted small">' + esc(relTempo(a.data)) + '</span> · <b>' + esc(a.autor || 'Alguém') + '</b><div>' + esc(a.texto) + '</div></li>';
     }).join('') + '</ul>';
   }
@@ -480,7 +483,7 @@
         '<div class="meta">' + esc(o.categoria || 'Sem categoria') + (o.dataOcorrencia ? ' · aberta em ' + esc(L.fmtCurta(o.dataOcorrencia)) : '') + (o.prazo ? ' · prazo ' + esc(L.fmtCurta(o.prazo)) + (atrasada ? ' (atrasado)' : '') : '') + (o.solucaoEm ? ' · resolvida em ' + esc(L.fmtCurta(o.solucaoEm)) : '') + '</div>' +
         (o.evento ? '<p class="small" style="margin:.4rem 0 0">' + esc(o.evento) + '</p>' : '') +
         listaAtualizacoesHTML(o) +
-        '<div class="campo-atualizacao-ocor"><textarea id="ocor-att-' + esc(o.id) + '" rows="2" placeholder="Registrar nova resposta/atualização…"></textarea>' +
+        '<div class="campo-atualizacao"><textarea id="ocor-att-' + esc(o.id) + '" rows="2" placeholder="Registrar nova resposta/atualização…"></textarea>' +
         '<button type="button" class="btn sm" data-act="ocor-add-att" data-id="' + esc(o.id) + '">Adicionar atualização</button></div>' +
         '</div>' +
         '<div class="acoes"><select data-chg="ocor-resp" data-id="' + esc(o.id) + '" aria-label="Responsável">' + resp.replace('value="' + esc(o.responsavel || '') + '"', 'value="' + esc(o.responsavel || '') + '" selected') + '</select>' +
@@ -488,7 +491,7 @@
     }).join('');
     return '<div class="topo"><div><h1>Ocorrências de alunos</h1><p>Registro de solicitações e problemas de alunos em andamento: quem está tratando, prazo e o que já foi feito.</p></div>' +
       '<div class="acoes nav-sem"><button type="button" class="btn primario" data-act="nova-ocorrencia">Nova ocorrência</button></div></div>' +
-      '<div class="acoes subnav-ocor">' +
+      '<div class="acoes subnav">' +
       '<button type="button" class="btn sm' + (aba === 'abertas' ? ' on' : '') + '" data-act="ocor-aba" data-aba="abertas">Abertas (' + abertas.length + ')</button>' +
       '<button type="button" class="btn sm' + (aba === 'resolvidas' ? ' on' : '') + '" data-act="ocor-aba" data-aba="resolvidas">Resolvidas (' + resolvidas.length + ')</button>' +
       '</div>' +
@@ -736,22 +739,50 @@
   }
 
   /* ---------- Tarefas administrativas (afazeres) ---------- */
+  // Mesma lógica de abas do painel de Leads: Entregues = concluída; Atrasados = passou o prazo e
+  // não foi concluída; Resolver até hoje = todo o resto em aberto (prazo hoje, futuro ou sem prazo),
+  // ordenado pelo prazo mais próximo primeiro — é a aba "o que falta fazer, com prioridade".
+  function tarefaAtrasada(t) { return !t.feito && t.prazo && t.prazo < HOJE; }
+  function atualizacoesDaTarefa(t) {
+    return (t.atualizacoes || []).slice().sort(function (a, b) { return (b.data || '').localeCompare(a.data || ''); });
+  }
+  function listaAtualizacoesTarefaHTML(t) {
+    const itens = atualizacoesDaTarefa(t);
+    if (!itens.length) return '';
+    return '<ul class="lista-atividade lista-atualizacoes">' + itens.map(function (a) {
+      return '<li><span class="muted small">' + esc(relTempo(a.data)) + '</span> · <b>' + esc(a.autor || 'Alguém') + '</b><div>' + esc(a.texto) + '</div></li>';
+    }).join('') + '</ul>';
+  }
   function viewAfazeres() {
     const todas = S.afazeres || [];
-    const abertas = todas.filter(function (t) { return !t.feito; });
-    const visiveis = (V.afazerFeitas ? todas : abertas).slice().sort(function (a, b) {
+    const entregues = todas.filter(function (t) { return t.feito; });
+    const atrasados = todas.filter(tarefaAtrasada);
+    const hoje = todas.filter(function (t) { return !t.feito && !tarefaAtrasada(t); });
+    const aba = V.tarefaAba === 'atrasados' ? 'atrasados' : V.tarefaAba === 'entregues' ? 'entregues' : 'hoje';
+    const visiveis = (aba === 'atrasados' ? atrasados : aba === 'entregues' ? entregues : hoje).slice().sort(function (a, b) {
       const pa = a.prazo || a.data || '9999-99-99', pb = b.prazo || b.data || '9999-99-99';
-      return (a.feito ? 1 : 0) - (b.feito ? 1 : 0) || (pa < pb ? -1 : pa > pb ? 1 : 0);
+      return pa < pb ? -1 : pa > pb ? 1 : 0;
     });
-    const linhas = visiveis.map(function (t) {
-      const atrasada = !t.feito && t.prazo && t.prazo < HOJE;
-      return '<li class="dec-item' + (t.feito ? ' feito' : '') + '"><label class="check"><input type="checkbox" data-chg="afazer-feito" data-id="' + esc(t.id) + '"' + (t.feito ? ' checked' : '') + '><span><b>' + esc(t.demanda) + '</b><small>' + (t.responsavel ? esc(t.responsavel) + ' · ' : '') + (t.data ? 'a partir de ' + esc(L.fmtCurta(t.data)) + ' · ' : '') + (t.prazo ? 'prazo ' + esc(L.fmtCurta(t.prazo)) + (atrasada ? ' (atrasado)' : '') : 'sem prazo') + '</small></span></label>' +
-        '<button type="button" class="btn sm" data-act="editar-afazer" data-id="' + esc(t.id) + '">Editar</button></li>';
+    const cards = visiveis.map(function (t) {
+      const atrasada = tarefaAtrasada(t);
+      const sev = t.feito ? 'ok' : (atrasada ? 'erro' : 'atencao');
+      return '<article class="pitem ' + sev + '"><div><h3>' + esc(t.demanda) + '</h3>' +
+        '<div class="meta">' + (t.responsavel ? esc(t.responsavel) : 'sem responsável') + (t.data ? ' · a partir de ' + esc(L.fmtCurta(t.data)) : '') + (t.prazo ? ' · prazo ' + esc(L.fmtCurta(t.prazo)) + (atrasada ? ' (atrasado)' : '') : ' · sem prazo') + (t.feito ? ' · concluída' : '') + '</div>' +
+        listaAtualizacoesTarefaHTML(t) +
+        (t.feito ? '' : ('<div class="campo-atualizacao"><textarea id="taf-att-' + esc(t.id) + '" rows="2" placeholder="Registrar que começou a resolver, ou como está o andamento…"></textarea>' +
+          '<button type="button" class="btn sm" data-act="afazer-add-att" data-id="' + esc(t.id) + '">Adicionar atualização</button></div>')) +
+        '</div>' +
+        '<div class="acoes"><label class="check"><input type="checkbox" data-chg="afazer-feito" data-id="' + esc(t.id) + '"' + (t.feito ? ' checked' : '') + '> Concluída</label>' +
+        '<button type="button" class="btn sm" data-act="editar-afazer" data-id="' + esc(t.id) + '">Editar</button></div></article>';
     }).join('');
-    return '<div class="topo"><div><h1>Tarefas administrativas</h1><p>Lista contínua de demandas da unidade (eventos, matrículas, organização) — sem precisar recriar a lista todo mês.</p></div>' +
+    return '<div class="topo"><div><h1>Tarefas administrativas</h1><p>Lista contínua de demandas da unidade (eventos, matrículas, organização) — quem tem que fazer, até quando, e o andamento de cada uma.</p></div>' +
       '<div class="acoes nav-sem"><button type="button" class="btn primario" data-act="novo-afazer">Nova tarefa</button></div></div>' +
-      '<div class="acoes"><label class="check"><input type="checkbox" data-chg="afazerFeitas"' + (V.afazerFeitas ? ' checked' : '') + '> Mostrar concluídas' + (todas.length - abertas.length ? ' (' + (todas.length - abertas.length) + ')' : '') + '</label></div>' +
-      (linhas ? '<ul class="decs">' + linhas + '</ul>' : '<div class="vazio">Nenhuma tarefa em aberto.</div>');
+      '<div class="acoes subnav">' +
+      '<button type="button" class="btn sm' + (aba === 'hoje' ? ' on' : '') + '" data-act="tarefa-aba" data-aba="hoje">Resolver até hoje (' + hoje.length + ')</button>' +
+      '<button type="button" class="btn sm' + (aba === 'atrasados' ? ' on' : '') + '" data-act="tarefa-aba" data-aba="atrasados">Atrasados (' + atrasados.length + ')</button>' +
+      '<button type="button" class="btn sm' + (aba === 'entregues' ? ' on' : '') + '" data-act="tarefa-aba" data-aba="entregues">Entregues (' + entregues.length + ')</button>' +
+      '</div>' +
+      '<div class="pend">' + (cards || ('<div class="vazio">Nenhuma tarefa ' + (aba === 'atrasados' ? 'atrasada' : aba === 'entregues' ? 'entregue ainda' : 'por aqui') + '.</div>')) + '</div>';
   }
   function abrirEditarAfazer(id) {
     const novo = !id, t = novo ? null : S.afazeres.find(function (x) { return x.id === id; });
@@ -759,11 +790,13 @@
     abrirDlg(cabDlg(novo ? 'Nova tarefa' : 'Editar tarefa', '') +
       '<div class="corpo" data-id="' + esc(id || '') + '" id="form-afazer"><div class="campos">' +
       '<div class="largo"><label for="t-demanda">Demanda</label><input type="text" id="t-demanda" value="' + esc(t ? t.demanda : '') + '"></div>' +
-      '<div><label for="t-resp">Responsável</label><input type="text" id="t-resp" value="' + esc(t ? t.responsavel : '') + '"></div>' +
+      '<div><label for="t-resp">Responsável (quem vai fazer)</label><input type="text" id="t-resp" value="' + esc(t ? t.responsavel : '') + '"></div>' +
       '<div><label for="t-data">Data</label><input type="date" id="t-data" value="' + esc(t ? t.data : '') + '"></div>' +
       '<div><label for="t-prazo">Prazo</label><input type="date" id="t-prazo" value="' + esc(t ? t.prazo : '') + '"></div>' +
       (novo ? '' : '<label class="check"><input type="checkbox" id="t-feito"' + (t && t.feito ? ' checked' : '') + '> Concluída</label>') +
-      '</div></div>' +
+      '</div>' +
+      (t && atualizacoesDaTarefa(t).length ? ('<div class="largo" style="margin-top:.8rem"><label>Histórico de atualizações</label>' + listaAtualizacoesTarefaHTML(t) + '</div>') : '') +
+      '</div>' +
       '<footer><button type="button" class="btn primario" data-act="salvar-afazer">Salvar</button>' + (novo ? '' : '<button type="button" class="btn perigo" data-act="excluir-afazer">Excluir</button>') + '<button type="button" class="btn fim" data-act="fechar">Cancelar</button></footer>');
   }
   function salvarAfazer() {
@@ -1423,9 +1456,26 @@
       if (i) registrar('Excluiu item de estoque', i.item);
       fecharDlg(); render(); toast('Item excluído');
     },
+    'tarefa-aba': function (el) { V.tarefaAba = el.dataset.aba; render(); },
     'novo-afazer': function () { abrirEditarAfazer(null); },
     'editar-afazer': function (el) { abrirEditarAfazer(el.dataset.id); },
     'salvar-afazer': salvarAfazer,
+    /* Registrar uma nova atualização direto no card, sem precisar abrir "Editar" — guarda o texto,
+       quem anotou (o e-mail de login, ou o nome salvo em Config) e quando. */
+    'afazer-add-att': function (el) {
+      const id = el.dataset.id;
+      const campo = $('#taf-att-' + CSS.escape(id));
+      const texto = campo ? campo.value.trim() : '';
+      if (!texto) { toast('Escreva a atualização antes de adicionar'); return; }
+      const t = S.afazeres.find(function (x) { return x.id === id; });
+      if (!t) return;
+      t.atualizacoes = t.atualizacoes || [];
+      t.atualizacoes.push({ texto: texto, autor: autorAtual(), data: new Date().toISOString() });
+      LS.set('afazeres', S.afazeres);
+      registrar('Adicionou atualização em tarefa', t.demanda);
+      render();
+      toast('Atualização adicionada' + (Sync.configured() ? '' : ' neste navegador'));
+    },
     'excluir-afazer': function () {
       const f = $('#form-afazer'); if (!f) return;
       const id = f.dataset.id; if (!confirm('Excluir esta tarefa?')) return;
@@ -1444,7 +1494,6 @@
     passado: function (el) { V.passado = el.checked; render(); },
     pratPassado: function (el) { V.pratPassado = el.checked; render(); },
     verIgnorados: function (el) { V.verIgnorados = el.checked; render(); },
-    afazerFeitas: function (el) { V.afazerFeitas = el.checked; render(); },
     'ocor-resp': function (el) { const o = S.ocorrencias.find(function (x) { return x.id === el.dataset.id; }); if (!o) return; o.responsavel = el.value; LS.set('ocorrencias', S.ocorrencias); if (el.value === 'Resolvido' && !o.solucaoEm) o.solucaoEm = HOJE; registrar('Atualizou responsável da ocorrência', o.aluno + ' · ' + (el.value || 'sem responsável')); render(); },
     /* Trocar a data no diálogo de "Nova prova" precisa recalcular os horários daquele dia (cada
        dia da semana tem uma janela diferente) — redesenha o diálogo preservando o que já foi

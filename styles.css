@@ -198,16 +198,16 @@ select.inline { width: auto; }
 .pitem li.ignorado .badge { text-decoration: line-through; }
 .pitem.ok { border-left-color: var(--ok); }
 
-.subnav-ocor { gap: 0.5rem; margin-bottom: 0.8rem; }
-.subnav-ocor .btn.sm.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.subnav { gap: 0.5rem; margin-bottom: 0.8rem; }
+.subnav .btn.sm.on { background: var(--brand); border-color: var(--brand); color: #fff; }
 
-.lista-atualizacoes-ocor { max-height: none; margin: 0.5rem 0 0; }
-.lista-atualizacoes-ocor li { padding: 0.35rem 0; }
-.lista-atualizacoes-ocor li div { margin-top: 0.15rem; }
+.lista-atualizacoes { max-height: none; margin: 0.5rem 0 0; }
+.lista-atualizacoes li { padding: 0.35rem 0; }
+.lista-atualizacoes li div { margin-top: 0.15rem; }
 
-.campo-atualizacao-ocor { margin-top: 0.5rem; display: grid; gap: 0.35rem; }
-.campo-atualizacao-ocor textarea { width: 100%; resize: vertical; font: inherit; padding: 0.4rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
-.campo-atualizacao-ocor .btn { justify-self: start; }
+.campo-atualizacao { margin-top: 0.5rem; display: grid; gap: 0.35rem; }
+.campo-atualizacao textarea { width: 100%; resize: vertical; font: inherit; padding: 0.4rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
+.campo-atualizacao .btn { justify-self: start; }
 
 .horarios-prova { display: grid; gap: 0.5rem; margin-top: 0.6rem; }
 .horario-prova { padding: 0.55rem 0.75rem; border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; background: var(--card); font-size: 0.875rem; }
