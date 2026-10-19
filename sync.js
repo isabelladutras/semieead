@@ -15,9 +15,11 @@
   'use strict';
   const CONFIG = (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || null;
   const ANTIGO = (typeof window !== 'undefined' && window.FIREBASE_CONFIG_ANTIGO) || null;
+  const ADMINS = (typeof window !== 'undefined' && window.ADMIN_EMAILS) || [];
   const FIREBASE_VERSION = '10.14.1';
   let docRef = null, auth = null, db = null, carregando = null, unsubs = [];
   let alunosCb = null, alunos = null, usuario = null;
+  let equipeCb = null, equipe = null;
 
   function configured() { return !!CONFIG; }
 
@@ -153,6 +155,13 @@
           alunos = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
           alunosCb && alunosCb(alunos);
         }, function () { alunos = alunos || []; alunosCb && alunosCb(alunos); }));
+        /* Equipe (vendedoras + Permanência): o mesmo documento config/equipe usado pelo sistema de
+           leads. Só a administradora consegue gravar nele (regra do Firestore), mas qualquer pessoa
+           com acesso ao painel consegue ler, pra sabermos nomes/e-mails de quem está ativo. */
+        unsubs.push(db.collection('config').doc('equipe').onSnapshot(function (s) {
+          equipe = (s.exists && Array.isArray(s.data().membros)) ? s.data().membros : [];
+          equipeCb && equipeCb(equipe);
+        }, function () { equipe = equipe || []; equipeCb && equipeCb(equipe); }));
       });
     }).catch(function () { onStatus && onStatus('erro'); });
   }
@@ -166,5 +175,30 @@
   function email() { return usuario && usuario.email || ''; }
   function sair() { if (auth) auth.signOut().then(function () { location.reload(); }); }
 
-  return { configured: configured, init: init, push: push, onAlunos: onAlunos, email: email, sair: sair };
+  function onEquipe(cb) { equipeCb = cb; if (equipe) cb(equipe); }
+  /* Só a administradora (mesmo e-mail da regra do Firestore, em sync-config.js) consegue gravar
+     a equipe — usado só para decidir se mostra o formulário de adicionar/desativar no painel. */
+  function souAdmin() {
+    const em = email().toLowerCase();
+    if (!em) return false;
+    return ADMINS.map(function (x) { return String(x).toLowerCase(); }).indexOf(em) >= 0;
+  }
+  /* Grava o documento config/equipe inteiro — é o mesmo documento que o sistema de leads usa, e a
+     gravação lá também é sempre do array completo (nunca parcial), senão perderíamos quem já
+     estava cadastrado. Reproduz exatamente a mesma derivação de campos (nomes/emails/
+     emailsAcademico/nomePorEmail) que o sistema de leads faz, pra tudo continuar compatível. */
+  function salvarEquipe(membros) {
+    if (!CONFIG || !db) return Promise.resolve(false);
+    const ativos = membros.filter(function (x) { return x.ativa !== false; });
+    const corpo = {
+      membros: membros,
+      nomes: ativos.filter(function (x) { return x.papel !== 'permanencia'; }).map(function (x) { return x.nome; }),
+      emails: ativos.map(function (x) { return String(x.email || '').toLowerCase(); }).filter(Boolean),
+      emailsAcademico: ativos.filter(function (x) { return x.papel === 'permanencia'; }).map(function (x) { return String(x.email || '').toLowerCase(); }).filter(Boolean),
+      nomePorEmail: ativos.filter(function (x) { return x.email; }).reduce(function (acc, x) { acc[String(x.email).toLowerCase()] = x.nome; return acc; }, {})
+    };
+    return db.collection('config').doc('equipe').set(corpo).then(function () { return true; }, function () { return false; });
+  }
+
+  return { configured: configured, init: init, push: push, onAlunos: onAlunos, email: email, sair: sair, onEquipe: onEquipe, salvarEquipe: salvarEquipe, souAdmin: souAdmin };
 });

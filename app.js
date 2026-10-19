@@ -45,7 +45,7 @@
     afazeres: LS.get('afazeres', null) || (DATA.afazeres || []).map(function (t) { return Object.assign({}, t); }),
     provas: LS.get('provas', [])
   };
-  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', tarefaAba: 'hoje', msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false };
+  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', tarefaAba: 'hoje', equipe: [], equipeSaindo: '', msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false };
   const D = {};
 
   const PROF_CORES = { Marcelo: '#2454c5', Marcos: '#c2410c', Michele: '#b0245a', Olavo: '#6b3fc4', Rafael: '#0e7490', Vitor: '#4d7c0f', 'Fabrício': '#7a6f5b' };
@@ -1113,10 +1113,39 @@
       '<label class="sr" for="tels">Telefones</label><textarea id="tels" placeholder="Marcelo (21) 99999-9999">' + esc(contatosTexto()) + '</textarea><div class="acoes" style="margin-top:.6rem"><button type="button" class="btn primario" data-act="salvar-tels">Salvar telefones</button></div></section>' +
       '<section class="bloco"><h2>Assinatura das mensagens</h2><label for="ass">Texto que fecha cada mensagem de WhatsApp</label><input type="text" id="ass" value="' + esc(S.cfg.assinatura) + '"><div class="acoes" style="margin-top:.6rem"><button type="button" class="btn" data-act="salvar-ass">Salvar assinatura</button></div>' +
       '<label for="autor" style="margin-top:.8rem;display:block">Seu nome (aparece no registro de alterações)</label><input type="text" id="autor" value="' + esc(S.cfg.autor || '') + '"><div class="acoes" style="margin-top:.6rem"><button type="button" class="btn" data-act="salvar-autor">Salvar nome</button></div></section>' +
+      blocoEquipe() +
       blocoAtividade() +
       '<section class="bloco"><h2>Levar para outro computador</h2><p class="muted small">Gera um arquivo com rascunho, telefones, pendências de cadastro e marcações da rotina, para a coordenadora abrir em outro navegador.</p><div class="acoes"><button type="button" class="btn" data-act="backup">Baixar backup</button><button type="button" class="btn" data-act="restaurar-backup">Carregar backup</button></div><input type="file" id="arquivo-backup" accept=".json" hidden></section>';
   }
 
+  /* ---------- Equipe (vendedoras do sistema de leads + Permanência deste painel) ----------
+     Mesmo documento config/equipe do sistema de leads — gravação sempre do array completo (nunca
+     parcial), senão perderíamos quem já estava cadastrado lá. Só aparece pra administradora. */
+  function blocoEquipe() {
+    if (!Sync.configured() || !Sync.souAdmin || !Sync.souAdmin()) return '';
+    const membros = V.equipe || [];
+    const ativos = membros.filter(function (x) { return x.ativa !== false; });
+    const inativos = membros.filter(function (x) { return x.ativa === false; });
+    const linhaAtivo = function (x) {
+      return '<tr><td>' + esc(x.nome) + ' <span class="chip">' + (x.papel === 'permanencia' ? 'Permanência' : 'Vendedora') + '</span></td><td>' + esc(x.email || '—') + '</td>' +
+        '<td><button type="button" class="btn sm perigo" data-act="equipe-desativar" data-nome="' + esc(x.nome) + '">Desativar</button></td></tr>';
+    };
+    const boxSaida = V.equipeSaindo ? ('<div class="corpo" style="margin-top:.6rem;padding:.7rem .9rem;border:1px solid var(--line);border-radius:8px"><b>Desativar ' + esc(V.equipeSaindo) + '</b>' +
+      '<p class="muted small">Ela perde o acesso na hora, mesmo que ainda tenha senha. Dá para reativar depois.</p>' +
+      '<div class="acoes" style="margin-top:.4rem"><button type="button" class="btn perigo" data-act="equipe-desativar-ok">Desativar</button><button type="button" class="btn fim" data-act="equipe-desativar-cancelar">Cancelar</button></div></div>') : '';
+    return '<section class="bloco"><h2>Equipe (acesso ao sistema de leads e a este painel)</h2>' +
+      '<p class="muted small">Quem tiver a função <b>Permanência</b> entra também aqui no painel, com o mesmo e-mail e senha. Vendedoras só acessam o sistema de leads — gerencie as duas listas por aqui ou por lá, é a mesma equipe.</p>' +
+      '<div class="campos" style="margin-top:.6rem">' +
+      '<div><label for="eq-nome">Nome</label><input type="text" id="eq-nome" autocomplete="off"></div>' +
+      '<div><label for="eq-email">E-mail</label><input type="email" id="eq-email" autocomplete="off"></div>' +
+      '<div><label for="eq-papel">Função</label><select id="eq-papel"><option value="permanencia">Permanência (este painel)</option><option value="vendedora">Vendedora (sistema de leads)</option></select></div>' +
+      '</div><div class="acoes" style="margin-top:.5rem"><button type="button" class="btn primario" data-act="equipe-adicionar">Adicionar à equipe</button></div>' +
+      '<p class="muted small" style="margin-top:.5rem">Depois de adicionar, mande o link pra ela. No primeiro acesso ela clica em “Primeiro acesso: criar minha senha” usando este mesmo e-mail.</p>' +
+      (ativos.length ? ('<table class="tabela" style="margin-top:.7rem"><thead><tr><th>Pessoa</th><th>E-mail</th><th></th></tr></thead><tbody>' + ativos.map(linhaAtivo).join('') + '</tbody></table>') : '<p class="muted small" style="margin-top:.6rem">Ninguém cadastrado ainda.</p>') +
+      boxSaida +
+      (inativos.length ? ('<p class="muted small" style="margin-top:.6rem"><b>Inativas:</b> ' + inativos.map(function (x) { return esc(x.nome) + ' (<button type="button" class="btn sm" data-act="equipe-reativar" data-nome="' + esc(x.nome) + '">reativar</button>)'; }).join(' · ') + '</p>') : '') +
+      '</section>';
+  }
   function blocoAtividade() {
     const itens = (S.log || []).slice(0, 20);
     const linhas = itens.map(function (l) {
@@ -1364,6 +1393,44 @@
     'salvar-tels': function () { S.contatos = L.parseContatos($('#tels').value); LS.set('contatos', S.contatos); recalc(); registrar('Atualizou telefones', plural(Object.keys(S.contatos).length, 'contato', 'contatos')); render(); toast(plural(Object.keys(S.contatos).length, 'telefone salvo', 'telefones salvos')); },
     'salvar-ass': function () { S.cfg.assinatura = $('#ass').value.trim() || 'Coordenação Acadêmica — Polo 1740'; LS.set('cfg', S.cfg); toast('Assinatura salva'); },
     'salvar-autor': function () { const v = $('#autor').value.trim(); if (!v) { toast('Digite seu nome'); return; } S.cfg.autor = v; LS.set('cfg', S.cfg); toast('Nome salvo'); render(); },
+    /* Equipe: sempre lê V.equipe (o array completo, vindo do sync) e grava de volta o array
+       completo com a mudança — nunca um subconjunto, pra não perder quem já estava cadastrado,
+       inclusive vendedoras do sistema de leads que não aparecem filtradas aqui. */
+    'equipe-adicionar': function () {
+      const nome = ($('#eq-nome').value || '').trim().replace(/\s+/g, ' ');
+      const emailNovo = ($('#eq-email').value || '').trim().toLowerCase();
+      const papel = $('#eq-papel').value;
+      if (!nome) { toast('Informe o nome'); return; }
+      const atuais = (V.equipe || []).map(function (x) { return Object.assign({}, x); });
+      if (atuais.some(function (x) { return L.norm(x.nome) === L.norm(nome); })) { toast('Já existe alguém com esse nome na equipe'); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNovo)) { toast('Informe um e-mail válido'); return; }
+      if (emailNovo && atuais.some(function (x) { return String(x.email || '').toLowerCase() === emailNovo; })) { toast('Esse e-mail já está na equipe'); return; }
+      atuais.push({ nome: nome, email: emailNovo, ativa: true, desde: HOJE, papel: papel });
+      Sync.salvarEquipe(atuais).then(function (ok) {
+        if (ok) { registrar('Adicionou à equipe', nome + ' · ' + (papel === 'permanencia' ? 'Permanência' : 'Vendedora')); toast(nome + ' adicionada à equipe'); }
+        else toast('Não salvou — confira se é mesmo o seu login de administradora.');
+      });
+    },
+    'equipe-desativar': function (el) { V.equipeSaindo = el.dataset.nome; render(); },
+    'equipe-desativar-cancelar': function () { V.equipeSaindo = ''; render(); },
+    'equipe-desativar-ok': function () {
+      const nome = V.equipeSaindo; if (!nome) return;
+      const atuais = (V.equipe || []).map(function (x) { return x.nome === nome ? Object.assign({}, x, { ativa: false, saiuEm: HOJE }) : x; });
+      Sync.salvarEquipe(atuais).then(function (ok) {
+        if (ok) { registrar('Desativou da equipe', nome); toast(nome + ' desativada'); V.equipeSaindo = ''; }
+        else toast('Não salvou — tente de novo.');
+        render();
+      });
+    },
+    'equipe-reativar': function (el) {
+      const nome = el.dataset.nome;
+      const atuais = (V.equipe || []).map(function (x) { return x.nome === nome ? Object.assign({}, x, { ativa: true, saiuEm: null }) : x; });
+      Sync.salvarEquipe(atuais).then(function (ok) {
+        if (ok) { registrar('Reativou na equipe', nome); toast(nome + ' reativada'); }
+        else toast('Não salvou — tente de novo.');
+        render();
+      });
+    },
     backup: backup,
     'restaurar-backup': function () { $('#arquivo-backup').click(); },
     'pend-add': function () {
@@ -1630,6 +1697,7 @@
   recalc();
   Sync.init(aplicarRemoto, function (status) { V.syncStatus = status; render(); }, estadoAtual);
   if (Sync.onAlunos) Sync.onAlunos(function (lista) { V.alunos = lista; if (V.view === 'alunos' || V.view === 'dados') render(); });
+  if (Sync.onEquipe) Sync.onEquipe(function (lista) { V.equipe = lista || []; if (V.view === 'dados') render(); });
   rota();
   window.__painel = { S: S, D: D, V: V, render: render, recalc: recalc, abrirGrupo: abrirGrupo, abrirEditar: abrirEditar };
 })();

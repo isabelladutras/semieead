@@ -25,3 +25,6 @@ window.FIREBASE_CONFIG_ANTIGO = {
 };
 // Link do sistema de leads e alunos (aparece no menu do painel).
 window.LINK_SISTEMA_LEADS = "https://isabelladutras.github.io/leadsunifecaf/";
+// ADMIN_EMAILS: mesmo e-mail da administradora configurado nas regras do Firestore (e no sistema
+// de leads). Só esse e-mail consegue adicionar/desativar gente na aba Equipe — de lá ou de aqui.
+window.ADMIN_EMAILS = ["bellasdutra16@gmail.com"];
