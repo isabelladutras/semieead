@@ -8,7 +8,7 @@
 
   /* ---------- Armazenamento local (por navegador) + sincronização opcional entre navegadores ---------- */
   const Sync = window.Sync || { configured: function () { return false; }, init: function () {}, push: function () { return Promise.resolve(false); } };
-  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log', 'pratItens', 'ignorados', 'ocorrencias', 'estoque', 'afazeres'];
+  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log', 'pratItens', 'ignorados', 'ocorrencias', 'estoque', 'afazeres', 'provas'];
   const LS = {
     get: function (k, def) { try { const v = localStorage.getItem('sp1740.' + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } },
     set: function (k, v) {
@@ -42,9 +42,10 @@
     ignorados: LS.get('ignorados', {}),
     ocorrencias: LS.get('ocorrencias', null) || (DATA.ocorrencias || []).map(function (o) { return Object.assign({}, o); }),
     estoque: LS.get('estoque', null) || (DATA.estoque || []).map(function (e) { return Object.assign({}, e); }),
-    afazeres: LS.get('afazeres', null) || (DATA.afazeres || []).map(function (t) { return Object.assign({}, t); })
+    afazeres: LS.get('afazeres', null) || (DATA.afazeres || []).map(function (t) { return Object.assign({}, t); }),
+    provas: LS.get('provas', [])
   };
-  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', afazerFeitas: false, msgs: [], msgTel: '', syncStatus: 'sem-config' };
+  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', afazerFeitas: false, msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false };
   const D = {};
 
   const PROF_CORES = { Marcelo: '#2454c5', Marcos: '#c2410c', Michele: '#b0245a', Olavo: '#6b3fc4', Rafael: '#0e7490', Vitor: '#4d7c0f', 'Fabrício': '#7a6f5b' };
@@ -112,6 +113,7 @@
     linksUteis: '<path d="M10 14a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0L5.7 12.6a4 4 0 0 0 5.7 5.7l1-1"/>',
     ocorrencias: '<path d="M12 9v4M12 16.5v.01"/><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
     estoque: '<path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>',
+    provas: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="m9 15 2 2 4-4"/>',
     afazeres: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="m8 15 2.5 2.5L16 12"/>',
     alunos: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
     leads: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -121,7 +123,7 @@
     { id: 'semana', nome: 'Semana' }, { id: 'calendario', nome: 'Calendário' }, { id: 'professores', nome: 'Professores' },
     { id: 'alunos', nome: 'Alunos' },
     { id: 'conferencia', nome: 'Conferência' }, { id: 'rotina', nome: 'Rotina do mês' }, { id: 'praticas', nome: 'Práticas EAD' },
-    { id: 'ocorrencias', nome: 'Ocorrências' }, { id: 'estoque', nome: 'Estoque' }, { id: 'afazeres', nome: 'Tarefas' },
+    { id: 'ocorrencias', nome: 'Ocorrências' }, { id: 'provas', nome: 'Provas' }, { id: 'estoque', nome: 'Estoque' }, { id: 'afazeres', nome: 'Tarefas' },
     { id: 'buscar', nome: 'Buscar' }, { id: 'guia', nome: 'Guia rápido' }, { id: 'dados', nome: 'Dados' }
   ];
   // Links externos fixos do dia a dia da coordenação (abrem em outra aba; não fazem parte da navegação por hash).
@@ -512,6 +514,126 @@
     LS.set('ocorrencias', S.ocorrencias);
     registrar(novo ? 'Criou ocorrência' : 'Editou ocorrência', aluno);
     fecharDlg(); render(); toast('Ocorrência salva' + (Sync.configured() ? '' : ' neste navegador'));
+  }
+
+  /* ---------- Provas presenciais (agendamento por horário, limitado pelos computadores da unidade) ---------- */
+  // A unidade só tem 5 computadores, então cada horário de prova comporta no máximo 5 alunos. As
+  // provas duram 2h, dentro do horário de funcionamento: seg a qui 9h–20h, sex 9h–17h, sáb 8h–14h
+  // (domingo fechado). Os horários de cada dia são gerados a partir dessa janela.
+  const PROVA_DURACAO_HORAS = 2;
+  const PROVA_VAGAS_POR_HORARIO = 5;
+  const CURSOS_PROVA = ['Biomedicina', 'Farmácia', 'Educação Física', 'Terapia Ocupacional', 'Fisioterapia', 'Pedagogia', 'Psicopedagogia', 'Estética e Cosmética'];
+  const PROVA_JANELA_POR_DIA = { // getDay(): 0=domingo … 6=sábado
+    1: { abre: 9, fecha: 20 }, 2: { abre: 9, fecha: 20 }, 3: { abre: 9, fecha: 20 }, 4: { abre: 9, fecha: 20 },
+    5: { abre: 9, fecha: 17 },
+    6: { abre: 8, fecha: 14 }
+  };
+  function horaParaHHMM(h) { const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); }
+  function fmtHoraCurta(hhmm) { const m = /^(\d{2}):(\d{2})$/.exec(hhmm || ''); if (!m) return '—'; const hh = Number(m[1]); return m[2] === '00' ? (hh + 'h') : (hh + 'h' + m[2]); }
+  /* Lista os horários de 2h que cabem no dia (ex.: seg 9h–20h → 9h–11h, 11h–13h … 17h–19h); dia
+     sem janela cadastrada (domingo) devolve lista vazia — "fechado". */
+  function horariosDisponiveisNoDia(dataISO) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataISO || '')) return [];
+    const dow = new Date(dataISO + 'T00:00:00').getDay();
+    const cfg = PROVA_JANELA_POR_DIA[dow];
+    if (!cfg) return [];
+    const lista = [];
+    for (let h = cfg.abre; h + PROVA_DURACAO_HORAS <= cfg.fecha; h += PROVA_DURACAO_HORAS) {
+      const inicio = horaParaHHMM(h), fim = horaParaHHMM(h + PROVA_DURACAO_HORAS);
+      lista.push({ inicio: inicio, fim: fim, label: fmtHoraCurta(inicio) + '–' + fmtHoraCurta(fim) });
+    }
+    return lista;
+  }
+  /* Provas já agendadas numa data+horário (pra saber quantos dos 5 computadores já estão
+     ocupados). `idExcluir` tira a própria prova da contagem ao editá-la. */
+  function provasNoHorario(dataISO, horaInicio, idExcluir) {
+    return (S.provas || []).filter(function (x) { return x.data === dataISO && x.horaInicio === horaInicio && x.id !== idExcluir; });
+  }
+  /* Lê os campos do formulário de prova como estão na tela AGORA (antes de redesenhar o diálogo),
+     pra não perder o que já foi digitado quando a data muda e os horários são recalculados. */
+  function valoresAtuaisFormProva() {
+    const f = $('#form-prova');
+    if (!f) return {};
+    return {
+      data: $('#pv-data') ? $('#pv-data').value : '', horaInicio: $('#pv-horario') ? $('#pv-horario').value : '',
+      aluno: $('#pv-aluno') ? $('#pv-aluno').value : '', ra: $('#pv-ra') ? $('#pv-ra').value : '',
+      curso: $('#pv-curso') ? $('#pv-curso').value : '',
+      prova: $('#pv-prova') ? $('#pv-prova').value : '', disciplina: $('#pv-disciplina') ? $('#pv-disciplina').value : ''
+    };
+  }
+  function abrirEditarProva(id, valoresForcados) {
+    const novo = !id, p = novo ? null : S.provas.find(function (x) { return x.id === id; });
+    if (!novo && !p) return;
+    const v = Object.assign({ data: HOJE, horaInicio: '', aluno: '', ra: '', curso: '', prova: '', disciplina: '' }, p || {}, valoresForcados || {});
+    const horarios = horariosDisponiveisNoDia(v.data);
+    abrirDlg(cabDlg(novo ? 'Nova prova agendada' : 'Editar prova agendada', '') +
+      '<div class="corpo" data-id="' + esc(id || '') + '" id="form-prova"><div class="campos">' +
+      '<div><label for="pv-data">Data</label><input type="date" id="pv-data" data-chg="prova-data-preview" value="' + esc(v.data) + '"></div>' +
+      '<div><label for="pv-horario">Horário (2h cada, 5 computadores por horário)</label><select id="pv-horario">' +
+      (horarios.length ? horarios.map(function (h) {
+        const ocupadas = provasNoHorario(v.data, h.inicio, id || null).length;
+        const cheio = ocupadas >= PROVA_VAGAS_POR_HORARIO;
+        return '<option value="' + h.inicio + '"' + (v.horaInicio === h.inicio ? ' selected' : '') + (cheio ? ' disabled' : '') + '>' + h.label + ' · ' + ocupadas + '/' + PROVA_VAGAS_POR_HORARIO + (cheio ? ' — ESGOTADO' : ' vaga(s)') + '</option>';
+      }).join('') : '<option value="">— Fechado nesse dia —</option>') +
+      '</select></div>' +
+      '<div class="largo"><label for="pv-aluno">Aluno</label><input type="text" id="pv-aluno" value="' + esc(v.aluno) + '"></div>' +
+      '<div><label for="pv-ra">RA</label><input type="text" id="pv-ra" value="' + esc(v.ra) + '"></div>' +
+      '<div><label for="pv-curso">Curso</label><select id="pv-curso"><option value="">Escolher</option>' + CURSOS_PROVA.map(function (c) { return '<option' + (v.curso === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
+      '<div><label for="pv-prova">Prova</label><input type="text" id="pv-prova" value="' + esc(v.prova) + '" placeholder="Ex.: Prova Final, 2ª chamada…"></div>' +
+      '<div class="largo"><label for="pv-disciplina">Disciplina</label><input type="text" id="pv-disciplina" value="' + esc(v.disciplina) + '" placeholder="Ex.: Anatomia Humana"></div>' +
+      '</div></div>' +
+      '<footer><button type="button" class="btn primario" data-act="salvar-prova">Salvar</button>' + (novo ? '' : '<button type="button" class="btn perigo" data-act="excluir-prova">Excluir</button>') + '<button type="button" class="btn fim" data-act="fechar">Cancelar</button></footer>');
+  }
+  function salvarProva() {
+    const f = $('#form-prova'); if (!f) return;
+    const id = f.dataset.id, novo = !id;
+    const aluno = $('#pv-aluno').value.trim(); if (!aluno) { toast('Informe o nome do aluno'); return; }
+    const data = $('#pv-data').value; if (!data) { toast('Escolha a data da prova'); return; }
+    const horaInicio = $('#pv-horario').value;
+    const slot = horariosDisponiveisNoDia(data).find(function (h) { return h.inicio === horaInicio; });
+    if (!slot) { toast('Escolha um horário válido — talvez a unidade esteja fechada nesse dia.'); return; }
+    const ocupadas = provasNoHorario(data, horaInicio, novo ? null : id).length;
+    if (ocupadas >= PROVA_VAGAS_POR_HORARIO) { toast('Esse horário já está com os ' + PROVA_VAGAS_POR_HORARIO + ' computadores ocupados. Escolha outro horário.'); return; }
+    const campos = {
+      data: data, horaInicio: horaInicio, horaFim: slot.fim, aluno: aluno,
+      ra: $('#pv-ra').value.trim(), curso: $('#pv-curso').value, prova: $('#pv-prova').value.trim(), disciplina: $('#pv-disciplina').value.trim()
+    };
+    if (novo) { S.provas.push(Object.assign({ id: 'pv' + Date.now().toString(36), criadoEm: new Date().toISOString(), criadoPor: autorAtual() }, campos)); }
+    else { const p = S.provas.find(function (x) { return x.id === id; }); if (p) Object.assign(p, campos); }
+    LS.set('provas', S.provas);
+    registrar(novo ? 'Agendou prova' : 'Editou prova agendada', aluno + ' · ' + L.fmtCurta(data) + ' ' + slot.label);
+    fecharDlg(); render(); toast('Prova agendada' + (Sync.configured() ? '' : ' neste navegador'));
+  }
+  function viewProvas() {
+    const verData = V.provaVerData || HOJE;
+    const horariosDoDiaVisto = horariosDisponiveisNoDia(verData);
+    const agendaDia = horariosDoDiaVisto.map(function (h) {
+      const ocupantes = provasNoHorario(verData, h.inicio);
+      const cheio = ocupantes.length >= PROVA_VAGAS_POR_HORARIO;
+      return '<div class="horario-prova' + (cheio ? ' cheio' : '') + '"><b>' + esc(h.label) + '</b> <span class="vagas">' + ocupantes.length + '/' + PROVA_VAGAS_POR_HORARIO + ' vaga(s) ocupada(s)' + (cheio ? ' — esgotado' : '') + '</span>' +
+        (ocupantes.length ? ('<div class="ocupantes">' + ocupantes.map(function (p) { return esc(p.aluno) + (p.curso || p.disciplina ? (' (' + [p.curso, p.disciplina].filter(Boolean).map(esc).join(' · ') + ')') : ''); }).join(' · ') + '</div>') : '') +
+        '</div>';
+    }).join('');
+    const todas = (S.provas || []).slice().sort(function (a, b) { return (a.data + a.horaInicio).localeCompare(b.data + b.horaInicio); });
+    const futuras = todas.filter(function (p) { return p.data >= HOJE; });
+    const visiveis = V.provaPassadas ? todas : futuras;
+    const linhas = visiveis.map(function (p) {
+      return '<tr><td>' + esc(L.fmtCurta(p.data)) + '</td><td>' + esc(fmtHoraCurta(p.horaInicio)) + '–' + esc(fmtHoraCurta(p.horaFim)) + '</td>' +
+        '<td><b>' + esc(p.aluno) + '</b></td><td>' + esc(p.ra || '—') + '</td><td>' + esc(p.curso || '—') + '</td><td>' + esc(p.prova || '—') + '</td><td>' + esc(p.disciplina || '—') + '</td>' +
+        '<td><button type="button" class="btn sm" data-act="editar-prova" data-id="' + esc(p.id) + '">Editar</button></td></tr>';
+    }).join('');
+    return '<div class="topo"><div><h1>Provas agendadas</h1><p>Agendamento de provas presenciais na unidade — ' + PROVA_VAGAS_POR_HORARIO + ' computadores disponíveis por horário (2h cada). Funcionamento: seg a qui 9h–20h, sex 9h–17h, sáb 8h–14h.</p></div>' +
+      '<div class="acoes nav-sem"><button type="button" class="btn primario" data-act="novo-prova">Nova prova</button></div></div>' +
+      '<section class="bloco">' +
+      '<h2>Agenda do dia</h2>' +
+      '<div class="filtros"><div><label for="pv-ver-data">Ver vagas do dia</label><input type="date" id="pv-ver-data" data-chg="prova-ver-data" value="' + esc(verData) + '"></div></div>' +
+      (horariosDoDiaVisto.length ? ('<div class="horarios-prova">' + agendaDia + '</div>') : '<p class="muted">A unidade fica fechada nesse dia — sem horário de prova disponível.</p>') +
+      '</section>' +
+      '<section class="bloco">' +
+      '<h2>Próximas provas (' + futuras.length + ')</h2>' +
+      '<div class="acoes"><label class="check"><input type="checkbox" data-chg="prova-passadas"' + (V.provaPassadas ? ' checked' : '') + '> Mostrar também as já realizadas</label></div>' +
+      (visiveis.length ? ('<table class="tabela"><thead><tr><th>Data</th><th>Horário</th><th>Aluno</th><th>RA</th><th>Curso</th><th>Prova</th><th>Disciplina</th><th></th></tr></thead><tbody>' + linhas + '</tbody></table>') : '<div class="vazio">Nenhuma prova agendada.</div>') +
+      '</section>';
   }
 
   /* ---------- Estoque ---------- */
@@ -1109,7 +1231,7 @@
     baixar('calendario-polo-1740.xlsx', XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   }
   function backup() {
-    baixar('backup-painel-1740.json', JSON.stringify({ versao: 1, rows: S.rows, contatos: S.contatos, status: S.status, tarefas: S.tarefas, cfg: S.cfg, pend: S.pend, prat: S.prat, pratItens: S.pratItens, ocorrencias: S.ocorrencias, estoque: S.estoque, afazeres: S.afazeres }, null, 1), 'application/json');
+    baixar('backup-painel-1740.json', JSON.stringify({ versao: 1, rows: S.rows, contatos: S.contatos, status: S.status, tarefas: S.tarefas, cfg: S.cfg, pend: S.pend, prat: S.prat, pratItens: S.pratItens, ocorrencias: S.ocorrencias, estoque: S.estoque, afazeres: S.afazeres, provas: S.provas }, null, 1), 'application/json');
   }
 
   /* ---------- Ações ---------- */
@@ -1233,6 +1355,17 @@
       if (o) registrar('Excluiu ocorrência', o.aluno);
       fecharDlg(); render(); toast('Ocorrência excluída');
     },
+    'novo-prova': function () { abrirEditarProva(null); },
+    'editar-prova': function (el) { abrirEditarProva(el.dataset.id); },
+    'salvar-prova': salvarProva,
+    'excluir-prova': function () {
+      const f = $('#form-prova'); if (!f) return;
+      const id = f.dataset.id; if (!id || !confirm('Cancelar esta prova agendada?')) return;
+      const p = S.provas.find(function (x) { return x.id === id; });
+      S.provas = S.provas.filter(function (x) { return x.id !== id; }); LS.set('provas', S.provas);
+      if (p) registrar('Cancelou prova agendada', p.aluno);
+      fecharDlg(); render(); toast('Prova cancelada');
+    },
     'novo-estoque': function () { abrirEditarEstoque(null); },
     'editar-estoque': function (el) { abrirEditarEstoque(el.dataset.id); },
     'salvar-estoque': salvarEstoque,
@@ -1267,6 +1400,17 @@
     verIgnorados: function (el) { V.verIgnorados = el.checked; render(); },
     afazerFeitas: function (el) { V.afazerFeitas = el.checked; render(); },
     'ocor-resp': function (el) { const o = S.ocorrencias.find(function (x) { return x.id === el.dataset.id; }); if (!o) return; o.responsavel = el.value; LS.set('ocorrencias', S.ocorrencias); if (el.value === 'Resolvido' && !o.solucaoEm) o.solucaoEm = HOJE; registrar('Atualizou responsável da ocorrência', o.aluno + ' · ' + (el.value || 'sem responsável')); render(); },
+    /* Trocar a data no diálogo de "Nova prova" precisa recalcular os horários daquele dia (cada
+       dia da semana tem uma janela diferente) — redesenha o diálogo preservando o que já foi
+       digitado nos outros campos. */
+    'prova-data-preview': function (el) {
+      const f = $('#form-prova'); const id = f ? f.dataset.id : '';
+      const valores = valoresAtuaisFormProva();
+      valores.data = el.value; valores.horaInicio = '';
+      abrirEditarProva(id || null, valores);
+    },
+    'prova-ver-data': function (el) { V.provaVerData = el.value; render(); },
+    'prova-passadas': function (el) { V.provaPassadas = el.checked; render(); },
     'estoque-comprar': function (el) { const i = S.estoque.find(function (x) { return x.id === el.dataset.id; }); if (!i) return; i.comprar = el.checked; LS.set('estoque', S.estoque); render(); const n = $('input[data-chg="estoque-comprar"][data-id="' + CSS.escape(i.id) + '"]'); if (n) n.focus(); },
     'afazer-feito': function (el) { const t = S.afazeres.find(function (x) { return x.id === el.dataset.id; }); if (!t) return; t.feito = el.checked; LS.set('afazeres', S.afazeres); if (el.checked) registrar('Concluiu tarefa', t.demanda); render(); const n = $('input[data-chg="afazer-feito"][data-id="' + CSS.escape(t.id) + '"]'); if (n) n.focus(); },
     status: function (el) { const p = el.dataset.prof, k = el.dataset.k; S.status[p] = S.status[p] || {}; S.status[p][k] = el.checked; LS.set('status', S.status); render(); const n = $('input[data-chg="status"][data-prof="' + CSS.escape(p) + '"][data-k="' + k + '"]'); if (n) n.focus(); },
@@ -1297,7 +1441,7 @@
         const b = JSON.parse(t); if (!b || !Array.isArray(b.rows)) throw new Error('Arquivo de backup inválido');
         if (!confirm('Substituir os dados deste navegador pelo backup?')) return;
         S.rows = b.rows; S.contatos = b.contatos || {}; S.status = b.status || {}; S.tarefas = b.tarefas || {}; S.cfg = Object.assign(S.cfg, b.cfg || {}); if (b.pend) { S.pend = b.pend; LS.set('pend', S.pend); } if (b.prat) { S.prat = b.prat; LS.set('prat', S.prat); } if (b.pratItens) { S.pratItens = b.pratItens; LS.set('pratItens', S.pratItens); }
-        if (b.ocorrencias) { S.ocorrencias = b.ocorrencias; LS.set('ocorrencias', S.ocorrencias); } if (b.estoque) { S.estoque = b.estoque; LS.set('estoque', S.estoque); } if (b.afazeres) { S.afazeres = b.afazeres; LS.set('afazeres', S.afazeres); }
+        if (b.ocorrencias) { S.ocorrencias = b.ocorrencias; LS.set('ocorrencias', S.ocorrencias); } if (b.estoque) { S.estoque = b.estoque; LS.set('estoque', S.estoque); } if (b.afazeres) { S.afazeres = b.afazeres; LS.set('afazeres', S.afazeres); } if (b.provas) { S.provas = b.provas; LS.set('provas', S.provas); }
         LS.set('contatos', S.contatos); LS.set('status', S.status); LS.set('tarefas', S.tarefas); LS.set('cfg', S.cfg); persistir(); render(); toast('Backup carregado');
       }).catch(function (err) { toast(err.message || 'Não consegui ler o backup'); }); el.value = ''; return;
     }
@@ -1315,7 +1459,7 @@
   });
 
   /* ---------- Render e rotas ---------- */
-  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, ocorrencias: viewOcorrencias, estoque: viewEstoque, afazeres: viewAfazeres, buscar: viewBusca, guia: viewGuia, dados: viewDados, alunos: viewAlunos };
+  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, ocorrencias: viewOcorrencias, provas: viewProvas, estoque: viewEstoque, afazeres: viewAfazeres, buscar: viewBusca, guia: viewGuia, dados: viewDados, alunos: viewAlunos };
   function banner() {
     if (Sync.configured()) return '';
     const rascunho = LS.get('rows', null), base = LS.get('rowsBase', '');

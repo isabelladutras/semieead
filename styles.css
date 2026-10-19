@@ -206,6 +206,12 @@ select.inline { width: auto; }
 .campo-atualizacao-ocor textarea { width: 100%; resize: vertical; font: inherit; padding: 0.4rem 0.55rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: inherit; }
 .campo-atualizacao-ocor .btn { justify-self: start; }
 
+.horarios-prova { display: grid; gap: 0.5rem; margin-top: 0.6rem; }
+.horario-prova { padding: 0.55rem 0.75rem; border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; background: var(--card); font-size: 0.875rem; }
+.horario-prova.cheio { border-left-color: var(--erro); background: var(--erro-soft); }
+.horario-prova .vagas { color: var(--ink-2); margin-left: 0.3rem; }
+.horario-prova .ocupantes { margin-top: 0.2rem; color: var(--ink-2); }
+
 /* Rotina */
 .linha-tempo { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.7rem; }
 .prazo { display: grid; grid-template-columns: 4.4rem minmax(0, 1fr); gap: 0.8rem; padding: 0.8rem 0.9rem; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
