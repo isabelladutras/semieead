@@ -120,10 +120,10 @@
     sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>'
   };
   const VIEWS = [
-    { id: 'semana', nome: 'Semana' }, { id: 'calendario', nome: 'Calendário' }, { id: 'professores', nome: 'Professores' },
+    { id: 'semana', nome: 'Semana' }, { id: 'calendario', nome: 'Calendário' }, { id: 'professores', nome: 'Professores' }, { id: 'provas', nome: 'Provas' },
     { id: 'alunos', nome: 'Alunos' },
     { id: 'conferencia', nome: 'Conferência' }, { id: 'rotina', nome: 'Rotina do mês' }, { id: 'praticas', nome: 'Práticas EAD' },
-    { id: 'ocorrencias', nome: 'Ocorrências' }, { id: 'provas', nome: 'Provas' }, { id: 'estoque', nome: 'Estoque' }, { id: 'afazeres', nome: 'Tarefas' },
+    { id: 'ocorrencias', nome: 'Ocorrências' }, { id: 'estoque', nome: 'Estoque' }, { id: 'afazeres', nome: 'Tarefas' },
     { id: 'buscar', nome: 'Buscar' }, { id: 'guia', nome: 'Guia rápido' }, { id: 'dados', nome: 'Dados' }
   ];
   // Links externos fixos do dia a dia da coordenação (abrem em outra aba; não fazem parte da navegação por hash).
@@ -218,6 +218,9 @@
   }
   function quandoTxt(iso) { const d = L.diffDays(HOJE, iso); return d === 0 ? 'hoje' : d === 1 ? 'amanhã' : d > 1 ? 'em ' + d + ' dias' : 'há ' + (-d) + ' dias'; }
 
+  /* Provas agendadas numa data (qualquer horário) — usado pra mostrar um aviso em Semana/Calendário
+     sem misturar a lista de provas com a grade de aulas das turmas. */
+  function provasDoDia(dataISO) { return (S.provas || []).filter(function (p) { return p.data === dataISO; }); }
   function viewSemana() {
     const ini = V.semana, fimSem = L.addDays(ini, 6);
     const gs = D.grupos.filter(function (g) { return g.iso >= ini && g.iso <= fimSem; });
@@ -234,13 +237,20 @@
       const prox = D.grupos.find(function (g) { return g.iso > fimSem; });
       quadro = '<div class="vazio">Sem aulas nesta semana.' + (prox ? ' A próxima é em ' + L.fmtLonga(prox.iso) + '. <button type="button" class="linkbtn" data-act="sem-ir" data-iso="' + prox.iso + '">Ir para essa semana</button>' : '') + '</div>';
     } else if (window.matchMedia('(max-width: 820px)').matches) {
-      quadro = dias.filter(function (d) { return gs.some(function (g) { return g.iso === d; }); }).map(function (d) {
-        return '<section class="dia-lista' + (d === HOJE ? ' hoje' : '') + '"><h3>' + esc(cap(L.fmtLonga(d))) + (d === HOJE ? ' (hoje)' : '') + '</h3>' + gs.filter(function (g) { return g.iso === d; }).map(cardGrupo).join('') + '</section>';
+      quadro = dias.filter(function (d) { return gs.some(function (g) { return g.iso === d; }) || provasDoDia(d).length; }).map(function (d) {
+        const aulasDia = gs.filter(function (g) { return g.iso === d; }), provasDia = provasDoDia(d);
+        return '<section class="dia-lista' + (d === HOJE ? ' hoje' : '') + '"><h3>' + esc(cap(L.fmtLonga(d))) + (d === HOJE ? ' (hoje)' : '') +
+          (provasDia.length ? ' <a href="#provas" class="chip provas" title="Ver na aba Provas">' + plural(provasDia.length, 'prova agendada', 'provas agendadas') + '</a>' : '') + '</h3>' +
+          (aulasDia.length ? aulasDia.map(cardGrupo).join('') : (provasDia.length ? '<p class="muted small">Sem aula presencial nesse dia.</p>' : '')) + '</section>';
       }).join('');
     } else {
       const bandas = [['manha', 'Manhã'], ['tarde', 'Tarde'], ['noite', 'Noite'], ['definir', 'Sem horário']].filter(function (b) { return gs.some(function (g) { return L.faixaTurno(g.ini) === b[0]; }); });
       quadro = '<div class="board" style="--cols:' + dias.length + '"><div class="corner"></div>' +
-        dias.map(function (d) { return '<div class="dh' + (d === HOJE ? ' hoje' : '') + '"><span>' + L.DIAS_CURTO[L.weekday(d)] + '</span><b>' + Number(d.slice(8)) + '</b></div>'; }).join('') +
+        dias.map(function (d) {
+          const provasDia = provasDoDia(d);
+          return '<div class="dh' + (d === HOJE ? ' hoje' : '') + '"><span>' + L.DIAS_CURTO[L.weekday(d)] + '</span><b>' + Number(d.slice(8)) + '</b>' +
+            (provasDia.length ? '<a href="#provas" class="chip provas" title="' + provasDia.length + ' prova(s) agendada(s) — ver na aba Provas">' + provasDia.length + ' prova(s)</a>' : '') + '</div>';
+        }).join('') +
         bandas.map(function (b) {
           return '<div class="bl">' + b[1] + '</div>' + dias.map(function (d) {
             return '<div class="cell' + (d === HOJE ? ' hoje' : '') + '">' + gs.filter(function (g) { return g.iso === d && L.faixaTurno(g.ini) === b[0]; }).map(cardGrupo).join('') + '</div>';
@@ -289,9 +299,10 @@
     const errosPorDia = {}; D.issues.forEach(function (i) { if (i.sev === 'erro') errosPorDia[i.iso] = 1; });
     let cel = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map(function (d) { return '<div class="cab">' + d + '</div>'; }).join('');
     for (let i = 0; i < total; i++) {
-      const d = L.addDays(inicio, i), lista = porDia[d] || [], dentro = d.slice(0, 7) === V.mes;
-      cel += '<button type="button" class="dia' + (dentro ? '' : ' fora') + (d === HOJE ? ' hoje' : '') + (errosPorDia[d] ? ' issue' : '') + '" data-act="dia" data-iso="' + d + '" aria-label="' + esc(L.fmtLonga(d)) + ', ' + plural(lista.length, 'aula', 'aulas') + '">' +
+      const d = L.addDays(inicio, i), lista = porDia[d] || [], dentro = d.slice(0, 7) === V.mes, provasDia = provasDoDia(d);
+      cel += '<button type="button" class="dia' + (dentro ? '' : ' fora') + (d === HOJE ? ' hoje' : '') + (errosPorDia[d] ? ' issue' : '') + '" data-act="dia" data-iso="' + d + '" aria-label="' + esc(L.fmtLonga(d)) + ', ' + plural(lista.length, 'aula', 'aulas') + (provasDia.length ? ', ' + plural(provasDia.length, 'prova agendada', 'provas agendadas') : '') + '">' +
         '<span class="num">' + Number(d.slice(8)) + '</span>' +
+        (provasDia.length ? '<span class="chip provas-mini">' + provasDia.length + ' prova(s)</span>' : '') +
         lista.slice(0, 3).map(function (g) { return '<span class="ch" style="--c:' + corProf(g.prof) + '" title="' + esc(g.disc + ' · ' + g.coortes.join(', ') + (g.sala ? ' · ' + g.sala : '')) + '">' + esc(L.hhmm(g.ini) + ' ' + juntarCursos(g.cursosCurto)) + ' <b class="mini-coorte">' + esc(g.coortes.join('/')) + '</b></span>'; }).join('') +
         (lista.length > 3 ? '<span class="mais">+' + (lista.length - 3) + '</span>' : '') +
         '<span class="pontos">' + lista.map(function (g) { return '<i style="--c:' + corProf(g.prof) + '"></i>'; }).join('') + '</span></button>';
@@ -544,10 +555,14 @@
     }
     return lista;
   }
-  /* Provas já agendadas numa data+horário (pra saber quantos dos 5 computadores já estão
-     ocupados). `idExcluir` tira a própria prova da contagem ao editá-la. */
-  function provasNoHorario(dataISO, horaInicio, idExcluir) {
-    return (S.provas || []).filter(function (x) { return x.data === dataISO && x.horaInicio === horaInicio && x.id !== idExcluir; });
+  /* Provas que se sobrepõem a um intervalo numa data (pra saber quantos dos 5 computadores já
+     estão ocupados naquele intervalo) — usa sobreposição, não igualdade exata, pra contar certo
+     mesmo quando alguém marca um "horário específico" que não bate com a grade de 2h. `idExcluir`
+     tira a própria prova da contagem ao editá-la. */
+  function provasSobrepostas(dataISO, horaInicio, horaFim, idExcluir) {
+    return (S.provas || []).filter(function (x) {
+      return x.data === dataISO && x.id !== idExcluir && x.horaInicio < horaFim && horaInicio < (x.horaFim || x.horaInicio);
+    });
   }
   /* Lê os campos do formulário de prova como estão na tela AGORA (antes de redesenhar o diálogo),
      pra não perder o que já foi digitado quando a data muda e os horários são recalculados. */
@@ -556,6 +571,7 @@
     if (!f) return {};
     return {
       data: $('#pv-data') ? $('#pv-data').value : '', horaInicio: $('#pv-horario') ? $('#pv-horario').value : '',
+      customInicio: $('#pv-custom-inicio') ? $('#pv-custom-inicio').value : '', customFim: $('#pv-custom-fim') ? $('#pv-custom-fim').value : '',
       aluno: $('#pv-aluno') ? $('#pv-aluno').value : '', ra: $('#pv-ra') ? $('#pv-ra').value : '',
       curso: $('#pv-curso') ? $('#pv-curso').value : '',
       prova: $('#pv-prova') ? $('#pv-prova').value : '', disciplina: $('#pv-disciplina') ? $('#pv-disciplina').value : ''
@@ -564,18 +580,29 @@
   function abrirEditarProva(id, valoresForcados) {
     const novo = !id, p = novo ? null : S.provas.find(function (x) { return x.id === id; });
     if (!novo && !p) return;
-    const v = Object.assign({ data: HOJE, horaInicio: '', aluno: '', ra: '', curso: '', prova: '', disciplina: '' }, p || {}, valoresForcados || {});
+    const v = Object.assign({ data: HOJE, horaInicio: '', customInicio: '', customFim: '', aluno: '', ra: '', curso: '', prova: '', disciplina: '' }, p || {}, valoresForcados || {});
     const horarios = horariosDisponiveisNoDia(v.data);
+    // "custom" tanto quando a pessoa escolheu explicitamente "Outro horário" quanto quando está
+    // editando uma prova cujo horário não bate com nenhum dos horários padrão daquele dia (ex.:
+    // horário específico marcado antes de mudar a data no formulário).
+    const ehPadrao = horarios.some(function (h) { return h.inicio === v.horaInicio; });
+    const usaCustom = v.horaInicio === 'custom' || (!!v.horaInicio && !ehPadrao);
+    if (usaCustom && !v.customInicio && v.horaInicio && v.horaInicio !== 'custom') { v.customInicio = v.horaInicio; v.customFim = v.horaFim || ''; }
     abrirDlg(cabDlg(novo ? 'Nova prova agendada' : 'Editar prova agendada', '') +
       '<div class="corpo" data-id="' + esc(id || '') + '" id="form-prova"><div class="campos">' +
       '<div><label for="pv-data">Data</label><input type="date" id="pv-data" data-chg="prova-data-preview" value="' + esc(v.data) + '"></div>' +
-      '<div><label for="pv-horario">Horário (2h cada, 5 computadores por horário)</label><select id="pv-horario">' +
-      (horarios.length ? horarios.map(function (h) {
-        const ocupadas = provasNoHorario(v.data, h.inicio, id || null).length;
+      '<div><label for="pv-horario">Horário (2h cada, 5 computadores por horário)</label><select id="pv-horario" data-chg="prova-horario-preview">' +
+      horarios.map(function (h) {
+        const ocupadas = provasSobrepostas(v.data, h.inicio, h.fim, id || null).length;
         const cheio = ocupadas >= PROVA_VAGAS_POR_HORARIO;
-        return '<option value="' + h.inicio + '"' + (v.horaInicio === h.inicio ? ' selected' : '') + (cheio ? ' disabled' : '') + '>' + h.label + ' · ' + ocupadas + '/' + PROVA_VAGAS_POR_HORARIO + (cheio ? ' — ESGOTADO' : ' vaga(s)') + '</option>';
-      }).join('') : '<option value="">— Fechado nesse dia —</option>') +
-      '</select></div>' +
+        return '<option value="' + h.inicio + '"' + (!usaCustom && v.horaInicio === h.inicio ? ' selected' : '') + (cheio ? ' disabled' : '') + '>' + h.label + ' · ' + ocupadas + '/' + PROVA_VAGAS_POR_HORARIO + (cheio ? ' — ESGOTADO' : ' vaga(s)') + '</option>';
+      }).join('') +
+      '<option value="custom"' + (usaCustom ? ' selected' : '') + '>Outro horário (caso específico)…</option>' +
+      '</select>' + (horarios.length ? '' : '<div class="muted small" style="margin-top:.3rem">A unidade fica fechada nesse dia da semana — só dá pra marcar como "Outro horário (caso específico)".</div>') + '</div>' +
+      (usaCustom ? (
+        '<div><label for="pv-custom-inicio">Início (horário específico)</label><input type="time" id="pv-custom-inicio" value="' + esc(v.customInicio) + '"></div>' +
+        '<div><label for="pv-custom-fim">Término (horário específico)</label><input type="time" id="pv-custom-fim" value="' + esc(v.customFim) + '"></div>'
+      ) : '') +
       '<div class="largo"><label for="pv-aluno">Aluno</label><input type="text" id="pv-aluno" value="' + esc(v.aluno) + '"></div>' +
       '<div><label for="pv-ra">RA</label><input type="text" id="pv-ra" value="' + esc(v.ra) + '"></div>' +
       '<div><label for="pv-curso">Curso</label><select id="pv-curso"><option value="">Escolher</option>' + CURSOS_PROVA.map(function (c) { return '<option' + (v.curso === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
@@ -589,26 +616,45 @@
     const id = f.dataset.id, novo = !id;
     const aluno = $('#pv-aluno').value.trim(); if (!aluno) { toast('Informe o nome do aluno'); return; }
     const data = $('#pv-data').value; if (!data) { toast('Escolha a data da prova'); return; }
-    const horaInicio = $('#pv-horario').value;
-    const slot = horariosDisponiveisNoDia(data).find(function (h) { return h.inicio === horaInicio; });
-    if (!slot) { toast('Escolha um horário válido — talvez a unidade esteja fechada nesse dia.'); return; }
-    const ocupadas = provasNoHorario(data, horaInicio, novo ? null : id).length;
-    if (ocupadas >= PROVA_VAGAS_POR_HORARIO) { toast('Esse horário já está com os ' + PROVA_VAGAS_POR_HORARIO + ' computadores ocupados. Escolha outro horário.'); return; }
+    const selecao = $('#pv-horario').value;
+    let horaInicio, horaFim, rotuloHorario;
+    if (selecao === 'custom') {
+      horaInicio = $('#pv-custom-inicio') ? $('#pv-custom-inicio').value : '';
+      horaFim = $('#pv-custom-fim') ? $('#pv-custom-fim').value : '';
+      if (!horaInicio || !horaFim) { toast('Informe o horário de início e término desse caso específico.'); return; }
+      if (horaFim <= horaInicio) { toast('O horário de término precisa ser depois do início.'); return; }
+      rotuloHorario = fmtHoraCurta(horaInicio) + '–' + fmtHoraCurta(horaFim) + ' (horário específico)';
+    } else {
+      const slot = horariosDisponiveisNoDia(data).find(function (h) { return h.inicio === selecao; });
+      if (!slot) { toast('Escolha um horário válido.'); return; }
+      horaInicio = slot.inicio; horaFim = slot.fim; rotuloHorario = slot.label;
+    }
+    const ocupadas = provasSobrepostas(data, horaInicio, horaFim, novo ? null : id).length;
+    if (ocupadas >= PROVA_VAGAS_POR_HORARIO) { toast('Esse horário já está com os ' + PROVA_VAGAS_POR_HORARIO + ' computadores ocupados nesse intervalo. Escolha outro horário.'); return; }
     const campos = {
-      data: data, horaInicio: horaInicio, horaFim: slot.fim, aluno: aluno,
+      data: data, horaInicio: horaInicio, horaFim: horaFim, aluno: aluno,
       ra: $('#pv-ra').value.trim(), curso: $('#pv-curso').value, prova: $('#pv-prova').value.trim(), disciplina: $('#pv-disciplina').value.trim()
     };
     if (novo) { S.provas.push(Object.assign({ id: 'pv' + Date.now().toString(36), criadoEm: new Date().toISOString(), criadoPor: autorAtual() }, campos)); }
     else { const p = S.provas.find(function (x) { return x.id === id; }); if (p) Object.assign(p, campos); }
     LS.set('provas', S.provas);
-    registrar(novo ? 'Agendou prova' : 'Editou prova agendada', aluno + ' · ' + L.fmtCurta(data) + ' ' + slot.label);
+    registrar(novo ? 'Agendou prova' : 'Editou prova agendada', aluno + ' · ' + L.fmtCurta(data) + ' ' + rotuloHorario);
     fecharDlg(); render(); toast('Prova agendada' + (Sync.configured() ? '' : ' neste navegador'));
   }
   function viewProvas() {
     const verData = V.provaVerData || HOJE;
     const horariosDoDiaVisto = horariosDisponiveisNoDia(verData);
-    const agendaDia = horariosDoDiaVisto.map(function (h) {
-      const ocupantes = provasNoHorario(verData, h.inicio);
+    // Além dos horários padrão de 2h, mostra também qualquer "horário específico" marcado nesse
+    // dia que não bate com nenhum deles, pra ele não ficar invisível na agenda do dia.
+    const provasDoDiaVisto = (S.provas || []).filter(function (p) { return p.data === verData; });
+    const extrasPorChave = {};
+    provasDoDiaVisto.forEach(function (p) {
+      const jaPadrao = horariosDoDiaVisto.some(function (h) { return h.inicio === p.horaInicio && h.fim === p.horaFim; });
+      if (!jaPadrao) extrasPorChave[p.horaInicio + '-' + p.horaFim] = { inicio: p.horaInicio, fim: p.horaFim, label: fmtHoraCurta(p.horaInicio) + '–' + fmtHoraCurta(p.horaFim) + ' (horário específico)' };
+    });
+    const blocosDoDia = horariosDoDiaVisto.concat(Object.keys(extrasPorChave).sort().map(function (k) { return extrasPorChave[k]; }));
+    const agendaDia = blocosDoDia.map(function (h) {
+      const ocupantes = provasSobrepostas(verData, h.inicio, h.fim);
       const cheio = ocupantes.length >= PROVA_VAGAS_POR_HORARIO;
       return '<div class="horario-prova' + (cheio ? ' cheio' : '') + '"><b>' + esc(h.label) + '</b> <span class="vagas">' + ocupantes.length + '/' + PROVA_VAGAS_POR_HORARIO + ' vaga(s) ocupada(s)' + (cheio ? ' — esgotado' : '') + '</span>' +
         (ocupantes.length ? ('<div class="ocupantes">' + ocupantes.map(function (p) { return esc(p.aluno) + (p.curso || p.disciplina ? (' (' + [p.curso, p.disciplina].filter(Boolean).map(esc).join(' · ') + ')') : ''); }).join(' · ') + '</div>') : '') +
@@ -1407,6 +1453,15 @@
       const f = $('#form-prova'); const id = f ? f.dataset.id : '';
       const valores = valoresAtuaisFormProva();
       valores.data = el.value; valores.horaInicio = '';
+      abrirEditarProva(id || null, valores);
+    },
+    /* Trocar entre um horário padrão e "Outro horário (caso específico)" precisa redesenhar o
+       diálogo pra mostrar/escoder os campos de início e término do horário específico. */
+    'prova-horario-preview': function (el) {
+      const f = $('#form-prova'); const id = f ? f.dataset.id : '';
+      const valores = valoresAtuaisFormProva();
+      valores.horaInicio = el.value;
+      if (el.value !== 'custom') { valores.customInicio = ''; valores.customFim = ''; }
       abrirEditarProva(id || null, valores);
     },
     'prova-ver-data': function (el) { V.provaVerData = el.value; render(); },
