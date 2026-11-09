@@ -1660,6 +1660,30 @@
   window.addEventListener('hashchange', rota);
   try { window.matchMedia('(max-width: 820px)').addEventListener('change', function () { if (V.view === 'semana') render(); }); } catch (e) { /* navegadores antigos */ }
 
+  /* ---------- Evita que uma aba esquecida aberta por dias sobrescreva alterações mais novas ----------
+     Cada tecla sincronizada (tarefas, ocorrências, etc.) é enviada ao banco por inteiro sempre que
+     alguém altera algo nela nesta aba. Se o computador ficar em espera/a aba ficar em segundo plano
+     por muito tempo, o conteúdo que essa aba tem na memória fica velho; ao voltar, se a pessoa editar
+     algo antes do navegador receber a atualização mais recente do banco, a edição envia de volta a
+     versão velha por inteiro — apagando o que outras pessoas alteraram nesses dias. Por isso, quando a
+     aba volta a ficar visível depois de passar um tempo escondida, ela recarrega a página pra garantir
+     que começa do estado mais recente antes de aceitar qualquer edição nova. */
+  (function () {
+    let escondidoDesde = null;
+    const LIMITE_MS = 3 * 60 * 1000; /* 3 minutos escondida já é sinal de computador em espera ou aba trocada por muito tempo */
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') { escondidoDesde = Date.now(); return; }
+      if (!escondidoDesde) return;
+      const parado = Date.now() - escondidoDesde;
+      escondidoDesde = null;
+      if (parado <= LIMITE_MS) return;
+      const ae = document.activeElement;
+      const editando = ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT') && ae.value;
+      if (editando) return; /* não recarrega e perde o que a pessoa está digitando agora */
+      location.reload();
+    });
+  })();
+
   /* ---------- Sincronização entre navegadores (se configurada em sync-config.js) ---------- */
   function aplicarRemoto(dados) {
     let mudou = false;
