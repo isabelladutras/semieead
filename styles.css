@@ -99,6 +99,7 @@ select.inline { width: auto; }
 .chip.provas { background: var(--brand-soft); color: var(--brand-strong); text-decoration: none; margin-left: 0.4rem; }
 .chip.provas:hover { text-decoration: underline; }
 .chip.provas-mini { display: block; background: var(--brand-soft); color: var(--brand-strong); margin-top: 0.15rem; width: fit-content; }
+.chip.material-mini { display: block; background: #fbeee0; color: #7a4712; margin-top: 0.15rem; width: fit-content; }
 .mini-coorte { font-weight: 700; opacity: .75; margin-left: .15rem; }
 .badge { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
 .badge.erro { background: var(--erro-soft); color: var(--erro); }

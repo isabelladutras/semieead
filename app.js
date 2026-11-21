@@ -47,7 +47,7 @@
     materiaisChk: LS.get('materiaisChk', {})
   };
   const V = {
-    alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', tarefaAba: 'hoje', equipe: [], equipeSaindo: '', equipeSenhaPara: '', equipeSenhaMsg: '', msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false,
+    alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', tarefaAba: 'hoje', tarefaView: 'lista', tarefaMes: YM_HOJE, equipe: [], equipeSaindo: '', equipeSenhaPara: '', equipeSenhaMsg: '', msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false,
     matSub: 'check', matCurso: (window.MATERIAIS_CATALOGO && MATERIAIS_CATALOGO.cursos[0] && MATERIAIS_CATALOGO.cursos[0].slug) || '', matFase: null, matDisc: '',
     matOrcCurso: (window.MATERIAIS_ORCAMENTO && MATERIAIS_ORCAMENTO.cursos[0] && MATERIAIS_ORCAMENTO.cursos[0].slug) || ''
   };
@@ -231,6 +231,7 @@
   /* Provas agendadas numa data (qualquer horário) — usado pra mostrar um aviso em Semana/Calendário
      sem misturar a lista de provas com a grade de aulas das turmas. */
   function provasDoDia(dataISO) { return (S.provas || []).filter(function (p) { return p.data === dataISO; }); }
+  function materiaisDoDia(dataISO) { return (S.afazeres || []).filter(function (t) { return t.origemMaterial && !t.feito && t.prazo === dataISO; }); }
   function viewSemana() {
     const ini = V.semana, fimSem = L.addDays(ini, 6);
     const gs = D.grupos.filter(function (g) { return g.iso >= ini && g.iso <= fimSem; });
@@ -309,10 +310,11 @@
     const errosPorDia = {}; D.issues.forEach(function (i) { if (i.sev === 'erro') errosPorDia[i.iso] = 1; });
     let cel = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map(function (d) { return '<div class="cab">' + d + '</div>'; }).join('');
     for (let i = 0; i < total; i++) {
-      const d = L.addDays(inicio, i), lista = porDia[d] || [], dentro = d.slice(0, 7) === V.mes, provasDia = provasDoDia(d);
-      cel += '<button type="button" class="dia' + (dentro ? '' : ' fora') + (d === HOJE ? ' hoje' : '') + (errosPorDia[d] ? ' issue' : '') + '" data-act="dia" data-iso="' + d + '" aria-label="' + esc(L.fmtLonga(d)) + ', ' + plural(lista.length, 'aula', 'aulas') + (provasDia.length ? ', ' + plural(provasDia.length, 'prova agendada', 'provas agendadas') : '') + '">' +
+      const d = L.addDays(inicio, i), lista = porDia[d] || [], dentro = d.slice(0, 7) === V.mes, provasDia = provasDoDia(d), materiaisDia = materiaisDoDia(d);
+      cel += '<button type="button" class="dia' + (dentro ? '' : ' fora') + (d === HOJE ? ' hoje' : '') + (errosPorDia[d] ? ' issue' : '') + '" data-act="dia" data-iso="' + d + '" aria-label="' + esc(L.fmtLonga(d)) + ', ' + plural(lista.length, 'aula', 'aulas') + (provasDia.length ? ', ' + plural(provasDia.length, 'prova agendada', 'provas agendadas') : '') + (materiaisDia.length ? ', ' + plural(materiaisDia.length, 'pendência de material', 'pendências de material') : '') + '">' +
         '<span class="num">' + Number(d.slice(8)) + '</span>' +
         (provasDia.length ? '<span class="chip provas-mini">' + provasDia.length + ' prova(s)</span>' : '') +
+        (materiaisDia.length ? '<span class="chip material-mini" title="Ver na aba Tarefas">' + materiaisDia.length + ' material</span>' : '') +
         lista.slice(0, 3).map(function (g) { return '<span class="ch" style="--c:' + corProf(g.prof) + '" title="' + esc(g.disc + ' · ' + g.coortes.join(', ') + (g.sala ? ' · ' + g.sala : '')) + '">' + esc(L.hhmm(g.ini) + ' ' + juntarCursos(g.cursosCurto)) + ' <b class="mini-coorte">' + esc(g.coortes.join('/')) + '</b></span>'; }).join('') +
         (lista.length > 3 ? '<span class="mais">+' + (lista.length - 3) + '</span>' : '') +
         '<span class="pontos">' + lista.map(function (g) { return '<i style="--c:' + corProf(g.prof) + '"></i>'; }).join('') + '</span></button>';
@@ -760,6 +762,44 @@
       return '<li><span class="muted small">' + esc(relTempo(a.data)) + '</span> · <b>' + esc(a.autor || 'Alguém') + '</b><div>' + esc(a.texto) + '</div></li>';
     }).join('') + '</ul>';
   }
+  function cardTarefa(t) {
+    const atrasada = tarefaAtrasada(t);
+    const sev = t.feito ? 'ok' : (atrasada ? 'erro' : 'atencao');
+    return '<article class="pitem ' + sev + '"><div><h3>' + esc(t.demanda) + (t.origemMaterial ? ' <span class="chip">Material</span>' : '') + '</h3>' +
+      '<div class="meta">' + (t.responsavel ? esc(t.responsavel) : 'sem responsável') + (t.data ? ' · a partir de ' + esc(L.fmtCurta(t.data)) : '') + (t.prazo ? ' · prazo ' + esc(L.fmtCurta(t.prazo)) + (atrasada ? ' (atrasado)' : '') : ' · sem prazo') + (t.feito ? ' · concluída' : '') + '</div>' +
+      listaAtualizacoesTarefaHTML(t) +
+      (t.feito ? '' : ('<div class="campo-atualizacao"><textarea id="taf-att-' + esc(t.id) + '" rows="2" placeholder="Registrar que começou a resolver, ou como está o andamento…"></textarea>' +
+        '<button type="button" class="btn sm" data-act="afazer-add-att" data-id="' + esc(t.id) + '">Adicionar atualização</button></div>')) +
+      '</div>' +
+      '<div class="acoes"><label class="check"><input type="checkbox" data-chg="afazer-feito" data-id="' + esc(t.id) + '"' + (t.feito ? ' checked' : '') + '> Concluída</label>' +
+      '<button type="button" class="btn sm" data-act="editar-afazer" data-id="' + esc(t.id) + '">Editar</button></div></article>';
+  }
+  function tarefasDoDia(iso) { return (S.afazeres || []).filter(function (t) { return t.prazo === iso || (!t.prazo && t.data === iso); }); }
+  function viewAfazeresCalendario() {
+    const p = V.tarefaMes.split('-').map(Number), primeiro = V.tarefaMes + '-01', inicio = L.mondayOf(primeiro);
+    const total = Math.ceil(((L.weekday(primeiro) + 6) % 7 + L.ultimoDia(p[0], p[1])) / 7) * 7;
+    let cel = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map(function (d) { return '<div class="cab">' + d + '</div>'; }).join('');
+    for (let i = 0; i < total; i++) {
+      const d = L.addDays(inicio, i), lista = tarefasDoDia(d), dentro = d.slice(0, 7) === V.tarefaMes;
+      const atrasadas = lista.filter(tarefaAtrasada).length, pendentes = lista.filter(function (t) { return !t.feito && !tarefaAtrasada(t); }).length, feitas = lista.filter(function (t) { return t.feito; }).length;
+      cel += '<button type="button" class="dia' + (dentro ? '' : ' fora') + (d === HOJE ? ' hoje' : '') + (atrasadas ? ' issue' : '') + '" data-act="tarefa-dia" data-iso="' + d + '" aria-label="' + esc(L.fmtLonga(d)) + ', ' + plural(lista.length, 'tarefa', 'tarefas') + '">' +
+        '<span class="num">' + Number(d.slice(8)) + '</span>' +
+        (atrasadas ? '<span class="chip material-mini">' + atrasadas + ' atrasada(s)</span>' : '') +
+        (pendentes ? '<span class="chip provas-mini">' + pendentes + ' a fazer</span>' : '') +
+        (feitas && !atrasadas && !pendentes ? '<span class="chip" style="display:block;margin-top:.15rem;width:fit-content">' + feitas + ' concluída(s)</span>' : '') +
+        '</button>';
+    }
+    return '<div class="topo mes-fixo"><div><h1>' + esc(nomeMes(V.tarefaMes)).replace(/^./, function (c) { return c.toUpperCase(); }) + '</h1><p>Toque em um dia pra ver as tarefas com prazo ali.</p></div>' +
+      '<div class="acoes nav-sem"><button type="button" class="btn" data-act="tarefa-mes-prev" aria-label="Mês anterior">‹</button><button type="button" class="btn" data-act="tarefa-mes-hoje">Hoje</button><button type="button" class="btn" data-act="tarefa-mes-next" aria-label="Próximo mês">›</button>' +
+      '<button type="button" class="btn primario" data-act="novo-afazer">Nova tarefa</button></div></div>' +
+      '<div class="mes">' + cel + '</div>';
+  }
+  function abrirDiaTarefas(iso) {
+    const lista = tarefasDoDia(iso);
+    abrirDlg(cabDlg(esc(L.fmtLonga(iso).replace(/^./, function (c) { return c.toUpperCase(); })), plural(lista.length, 'tarefa', 'tarefas')) +
+      '<div class="corpo">' + (lista.length ? lista.slice().sort(function (a, b) { return a.feito - b.feito; }).map(cardTarefa).join('') : '<div class="vazio">Sem tarefas com prazo neste dia.</div>') + '</div>' +
+      '<footer><button type="button" class="btn" data-act="novo-afazer-dia" data-iso="' + iso + '">Nova tarefa neste dia</button><button type="button" class="btn fim" data-act="fechar">Fechar</button></footer></div>');
+  }
   function viewAfazeres() {
     const todas = S.afazeres || [];
     const entregues = todas.filter(function (t) { return t.feito; });
@@ -770,28 +810,24 @@
       const pa = a.prazo || a.data || '9999-99-99', pb = b.prazo || b.data || '9999-99-99';
       return pa < pb ? -1 : pa > pb ? 1 : 0;
     });
-    const cards = visiveis.map(function (t) {
-      const atrasada = tarefaAtrasada(t);
-      const sev = t.feito ? 'ok' : (atrasada ? 'erro' : 'atencao');
-      return '<article class="pitem ' + sev + '"><div><h3>' + esc(t.demanda) + (t.origemMaterial ? ' <span class="chip">Material</span>' : '') + '</h3>' +
-        '<div class="meta">' + (t.responsavel ? esc(t.responsavel) : 'sem responsável') + (t.data ? ' · a partir de ' + esc(L.fmtCurta(t.data)) : '') + (t.prazo ? ' · prazo ' + esc(L.fmtCurta(t.prazo)) + (atrasada ? ' (atrasado)' : '') : ' · sem prazo') + (t.feito ? ' · concluída' : '') + '</div>' +
-        listaAtualizacoesTarefaHTML(t) +
-        (t.feito ? '' : ('<div class="campo-atualizacao"><textarea id="taf-att-' + esc(t.id) + '" rows="2" placeholder="Registrar que começou a resolver, ou como está o andamento…"></textarea>' +
-          '<button type="button" class="btn sm" data-act="afazer-add-att" data-id="' + esc(t.id) + '">Adicionar atualização</button></div>')) +
-        '</div>' +
-        '<div class="acoes"><label class="check"><input type="checkbox" data-chg="afazer-feito" data-id="' + esc(t.id) + '"' + (t.feito ? ' checked' : '') + '> Concluída</label>' +
-        '<button type="button" class="btn sm" data-act="editar-afazer" data-id="' + esc(t.id) + '">Editar</button></div></article>';
-    }).join('');
+    const cards = visiveis.map(cardTarefa).join('');
+    const calendario = V.tarefaView === 'calendario';
     return '<div class="topo"><div><h1>Tarefas administrativas</h1><p>Lista contínua de demandas da unidade (eventos, matrículas, organização) — quem tem que fazer, até quando, e o andamento de cada uma.</p></div>' +
       '<div class="acoes nav-sem"><button type="button" class="btn primario" data-act="novo-afazer">Nova tarefa</button></div></div>' +
       '<div class="acoes subnav">' +
-      '<button type="button" class="btn sm' + (aba === 'hoje' ? ' on' : '') + '" data-act="tarefa-aba" data-aba="hoje">Resolver até hoje (' + hoje.length + ')</button>' +
-      '<button type="button" class="btn sm' + (aba === 'atrasados' ? ' on' : '') + '" data-act="tarefa-aba" data-aba="atrasados">Atrasados (' + atrasados.length + ')</button>' +
-      '<button type="button" class="btn sm' + (aba === 'entregues' ? ' on' : '') + '" data-act="tarefa-aba" data-aba="entregues">Entregues (' + entregues.length + ')</button>' +
+      '<button type="button" class="btn sm' + (!calendario ? ' on' : '') + '" data-act="tarefa-view" data-view="lista">Lista</button>' +
+      '<button type="button" class="btn sm' + (calendario ? ' on' : '') + '" data-act="tarefa-view" data-view="calendario">Calendário</button>' +
       '</div>' +
-      '<div class="pend">' + (cards || ('<div class="vazio">Nenhuma tarefa ' + (aba === 'atrasados' ? 'atrasada' : aba === 'entregues' ? 'entregue ainda' : 'por aqui') + '.</div>')) + '</div>';
+      (calendario ? viewAfazeresCalendario() : (
+        '<div class="acoes subnav">' +
+        '<button type="button" class="btn sm' + (aba === 'hoje' ? ' on' : '') + '" data-act="tarefa-aba" data-aba="hoje">Resolver até hoje (' + hoje.length + ')</button>' +
+        '<button type="button" class="btn sm' + (aba === 'atrasados' ? ' on' : '') + '" data-act="tarefa-aba" data-aba="atrasados">Atrasados (' + atrasados.length + ')</button>' +
+        '<button type="button" class="btn sm' + (aba === 'entregues' ? ' on' : '') + '" data-act="tarefa-aba" data-aba="entregues">Entregues (' + entregues.length + ')</button>' +
+        '</div>' +
+        '<div class="pend">' + (cards || ('<div class="vazio">Nenhuma tarefa ' + (aba === 'atrasados' ? 'atrasada' : aba === 'entregues' ? 'entregue ainda' : 'por aqui') + '.</div>')) + '</div>'
+      ));
   }
-  function abrirEditarAfazer(id) {
+  function abrirEditarAfazer(id, isoDefault) {
     const novo = !id, t = novo ? null : S.afazeres.find(function (x) { return x.id === id; });
     if (!novo && !t) return;
     abrirDlg(cabDlg(novo ? 'Nova tarefa' : 'Editar tarefa', '') +
@@ -799,7 +835,7 @@
       '<div class="largo"><label for="t-demanda">Demanda</label><input type="text" id="t-demanda" value="' + esc(t ? t.demanda : '') + '"></div>' +
       '<div><label for="t-resp">Responsável (quem vai fazer)</label><input type="text" id="t-resp" value="' + esc(t ? t.responsavel : '') + '"></div>' +
       '<div><label for="t-data">Data</label><input type="date" id="t-data" value="' + esc(t ? t.data : '') + '"></div>' +
-      '<div><label for="t-prazo">Prazo</label><input type="date" id="t-prazo" value="' + esc(t ? t.prazo : '') + '"></div>' +
+      '<div><label for="t-prazo">Prazo</label><input type="date" id="t-prazo" value="' + esc(t ? t.prazo : (isoDefault || '')) + '"></div>' +
       (novo ? '' : '<label class="check"><input type="checkbox" id="t-feito"' + (t && t.feito ? ' checked' : '') + '> Concluída</label>') +
       '</div>' +
       (t && atualizacoesDaTarefa(t).length ? ('<div class="largo" style="margin-top:.8rem"><label>Histórico de atualizações</label>' + listaAtualizacoesTarefaHTML(t) + '</div>') : '') +
@@ -1715,7 +1751,13 @@
     'mat-sub': function (el) { V.matSub = el.dataset.sub; render(); },
     'mat-fase': function (el) { V.matFase = el.dataset.fase ? Number(el.dataset.fase) : null; V.matDisc = ''; render(); },
     'novo-afazer': function () { abrirEditarAfazer(null); },
+    'novo-afazer-dia': function (el) { abrirEditarAfazer(null, el.dataset.iso); },
     'editar-afazer': function (el) { abrirEditarAfazer(el.dataset.id); },
+    'tarefa-view': function (el) { V.tarefaView = el.dataset.view === 'calendario' ? 'calendario' : 'lista'; render(); },
+    'tarefa-mes-prev': function () { V.tarefaMes = somaMes(V.tarefaMes, -1); render(); },
+    'tarefa-mes-next': function () { V.tarefaMes = somaMes(V.tarefaMes, 1); render(); },
+    'tarefa-mes-hoje': function () { V.tarefaMes = YM_HOJE; render(); },
+    'tarefa-dia': function (el) { abrirDiaTarefas(el.dataset.iso); },
     'salvar-afazer': salvarAfazer,
     /* Registrar uma nova atualização direto no card, sem precisar abrir "Editar" — guarda o texto,
        quem anotou (o e-mail de login, ou o nome salvo em Config) e quando. */
