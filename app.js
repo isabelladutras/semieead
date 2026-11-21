@@ -48,7 +48,7 @@
   };
   const V = {
     alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', tarefaAba: 'hoje', equipe: [], equipeSaindo: '', equipeSenhaPara: '', equipeSenhaMsg: '', msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false,
-    matSub: 'check', matCurso: (window.MATERIAIS_CATALOGO && MATERIAIS_CATALOGO.cursos[0] && MATERIAIS_CATALOGO.cursos[0].slug) || '', matFase: null,
+    matSub: 'check', matCurso: (window.MATERIAIS_CATALOGO && MATERIAIS_CATALOGO.cursos[0] && MATERIAIS_CATALOGO.cursos[0].slug) || '', matFase: null, matDisc: '',
     matOrcCurso: (window.MATERIAIS_ORCAMENTO && MATERIAIS_ORCAMENTO.cursos[0] && MATERIAIS_ORCAMENTO.cursos[0].slug) || ''
   };
   const D = {};
@@ -828,7 +828,7 @@
   const MAT_SEMANAS_ANTES = 3;
   function materiaCatalogo() { return (window.MATERIAIS_CATALOGO && MATERIAIS_CATALOGO.cursos) || []; }
   function materiaOrcamento() { return (window.MATERIAIS_ORCAMENTO && MATERIAIS_ORCAMENTO.cursos) || []; }
-  function chaveMaterial(cursoSlug, fase, discIdx, oficinaId) { return cursoSlug + '|f' + fase + '|d' + discIdx + '|' + oficinaId; }
+  function chaveMaterial(cursoSlug, fase, discIdx, oficinaId, tipo, itemIdx) { return cursoSlug + '|f' + fase + '|d' + discIdx + '|' + oficinaId + '|' + tipo + '|' + itemIdx; }
   function oficinaTemMaterial(o) { return !!((o.materialPolo && o.materialPolo.length) || (o.materialSede && o.materialSede.length)); }
   /* Casa uma aula do calendário (curso + disciplina, texto livre digitado na planilha de aulas) com
      a disciplina correspondente no catálogo (texto vindo do portal da sede) — por nome normalizado,
@@ -888,33 +888,44 @@
     if (!cursos.length) return '<div class="vazio">Catálogo de materiais não carregado.</div>';
     const curso = cursos.find(function (c) { return c.slug === V.matCurso; }) || cursos[0];
     const fases = curso.fases || [];
-    const faseSel = V.matFase;
     const selCurso = '<select id="mat-curso" data-chg="matCurso">' + cursos.map(function (c) { return '<option value="' + esc(c.slug) + '"' + (c.slug === curso.slug ? ' selected' : '') + '>' + esc(c.curso) + '</option>'; }).join('') + '</select>';
+
+    // Lista de disciplinas com material, de todas as fases, pra pular direto sem descer a página.
+    const discsComMaterial = [];
+    fases.forEach(function (f) {
+      (f.disciplinas || []).forEach(function (disc, discIdx) {
+        if ((disc.oficinas || []).some(oficinaTemMaterial)) discsComMaterial.push({ fase: f.fase, discIdx: discIdx, nome: disc.nome });
+      });
+    });
+    const discValor = function (d) { return d.fase + '|' + d.discIdx; };
+    const matDiscAtual = discsComMaterial.some(function (d) { return discValor(d) === V.matDisc; }) ? V.matDisc : '';
+    const selDisc = '<select id="mat-disc" data-chg="matDisc"><option value="">Todas as disciplinas</option>' +
+      discsComMaterial.map(function (d) { return '<option value="' + esc(discValor(d)) + '"' + (discValor(d) === matDiscAtual ? ' selected' : '') + '>Fase ' + d.fase + ' — ' + esc(d.nome) + '</option>'; }).join('') + '</select>';
+
+    const faseSel = matDiscAtual ? Number(matDiscAtual.split('|')[0]) : V.matFase;
     const botFases = '<div class="acoes subnav" style="margin-top:.5rem">' +
       '<button type="button" class="btn sm' + (faseSel == null ? ' on' : '') + '" data-act="mat-fase" data-fase="">Todas as fases</button>' +
       fases.map(function (f) { return '<button type="button" class="btn sm' + (faseSel === f.fase ? ' on' : '') + '" data-act="mat-fase" data-fase="' + f.fase + '">Fase ' + f.fase + '</button>'; }).join('') +
       '</div>';
     const fasesVisiveis = faseSel == null ? fases : fases.filter(function (f) { return f.fase === faseSel; });
+    const discIdxFiltro = matDiscAtual ? Number(matDiscAtual.split('|')[1]) : null;
+
     let totalPolo = 0, feitasPolo = 0, totalSede = 0, feitasSede = 0;
     const cards = [];
     fasesVisiveis.forEach(function (f) {
       (f.disciplinas || []).forEach(function (disc, discIdx) {
+        if (discIdxFiltro != null && discIdx !== discIdxFiltro) return;
         const ofs = (disc.oficinas || []).filter(oficinaTemMaterial);
         if (!ofs.length) return;
+        const itemLinha = function (tipo, texto, idx, of) {
+          const key = chaveMaterial(curso.slug, f.fase, discIdx, of.id, tipo, idx);
+          const chk = S.materiaisChk[key];
+          if (tipo === 'polo') { totalPolo++; if (chk) feitasPolo++; } else { totalSede++; if (chk) feitasSede++; }
+          return '<label class="check"><input type="checkbox" data-chg="mat-item" data-tipo="' + tipo + '" data-key="' + esc(key) + '"' + (chk ? ' checked' : '') + '> ' + esc(texto) + (chk && chk.por ? (' <span class="muted small">— ' + esc(chk.por) + '</span>') : '') + '</label>';
+        };
         const blocos = ofs.map(function (of) {
-          const key = chaveMaterial(curso.slug, f.fase, discIdx, of.id);
-          const chk = S.materiaisChk[key] || {};
-          let colPolo = '<p class="muted small">Sem material do polo nesta oficina.</p>', colSede = '<p class="muted small">A sede não envia material pra esta oficina.</p>';
-          if (of.materialPolo.length) {
-            totalPolo++; if (chk.polo) feitasPolo++;
-            colPolo = '<ul class="lista-material">' + of.materialPolo.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
-              '<label class="check"><input type="checkbox" data-chg="mat-polo" data-key="' + esc(key) + '"' + (chk.polo ? ' checked' : '') + '> Comprado' + (chk.polo && chk.poloPor ? (' — ' + esc(chk.poloPor)) : '') + '</label>';
-          }
-          if (of.materialSede.length) {
-            totalSede++; if (chk.sede) feitasSede++;
-            colSede = '<ul class="lista-material">' + of.materialSede.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
-              '<label class="check"><input type="checkbox" data-chg="mat-sede" data-key="' + esc(key) + '"' + (chk.sede ? ' checked' : '') + '> Recebido' + (chk.sede && chk.sedePor ? (' — ' + esc(chk.sedePor)) : '') + '</label>';
-          }
+          const colPolo = of.materialPolo.length ? of.materialPolo.map(function (texto, idx) { return itemLinha('polo', texto, idx, of); }).join('') : '<p class="muted small">Sem material do polo nesta oficina.</p>';
+          const colSede = of.materialSede.length ? of.materialSede.map(function (texto, idx) { return itemLinha('sede', texto, idx, of); }).join('') : '<p class="muted small">A sede não envia material pra esta oficina.</p>';
           return '<div class="oficina"><h4>' + esc(of.nome || ('Oficina ' + of.numero + (of.opcao ? ' · opção ' + of.opcao : ''))) + '</h4>' +
             '<div class="campos"><div><label>Material do Polo</label>' + colPolo + '</div><div><label>Material da Sede</label>' + colSede + '</div></div></div>';
         }).join('');
@@ -922,7 +933,7 @@
       });
     });
     const resumo = '<p class="muted small">' + feitasPolo + '/' + totalPolo + ' itens de polo comprados · ' + feitasSede + '/' + totalSede + ' itens de sede recebidos nesta seleção</p>';
-    return '<div class="campos" style="margin-top:.6rem"><div><label for="mat-curso">Curso</label>' + selCurso + '</div></div>' + botFases + resumo +
+    return '<div class="campos" style="margin-top:.6rem"><div><label for="mat-curso">Curso</label>' + selCurso + '</div><div><label for="mat-disc">Disciplina</label>' + selDisc + '</div></div>' + botFases + resumo +
       (cards.length ? cards.join('') : '<div class="vazio">Nenhuma oficina com material cadastrado nesta fase.</div>');
   }
   function viewMateriaisOrcamento() {
@@ -1702,7 +1713,7 @@
     },
     'tarefa-aba': function (el) { V.tarefaAba = el.dataset.aba; render(); },
     'mat-sub': function (el) { V.matSub = el.dataset.sub; render(); },
-    'mat-fase': function (el) { V.matFase = el.dataset.fase ? Number(el.dataset.fase) : null; render(); },
+    'mat-fase': function (el) { V.matFase = el.dataset.fase ? Number(el.dataset.fase) : null; V.matDisc = ''; render(); },
     'novo-afazer': function () { abrirEditarAfazer(null); },
     'editar-afazer': function (el) { abrirEditarAfazer(el.dataset.id); },
     'salvar-afazer': salvarAfazer,
@@ -1774,23 +1785,19 @@
     msgSel: function (el) {
       const m = V.msgs.find(function (x) { return x.id === el.value; }); if (!m) return; $('#msgTxt').value = m.texto; atualizarWa();
     },
-    matCurso: function (el) { V.matCurso = el.value; V.matFase = null; render(); },
-    matOrcCurso: function (el) { V.matOrcCurso = el.value; render(); },
-    'mat-polo': function (el) {
-      const key = el.dataset.key; S.materiaisChk[key] = S.materiaisChk[key] || {};
-      S.materiaisChk[key].polo = el.checked;
-      if (el.checked) { S.materiaisChk[key].poloPor = autorAtual(); S.materiaisChk[key].poloEm = new Date().toISOString(); } else { delete S.materiaisChk[key].poloPor; delete S.materiaisChk[key].poloEm; }
-      LS.set('materiaisChk', S.materiaisChk);
-      if (el.checked) registrar('Marcou material do polo como comprado', key);
-      render(); const n = $('input[data-chg="mat-polo"][data-key="' + CSS.escape(key) + '"]'); if (n) n.focus();
+    matCurso: function (el) { V.matCurso = el.value; V.matFase = null; V.matDisc = ''; render(); },
+    matDisc: function (el) {
+      V.matDisc = el.value;
+      if (el.value) { const partes = el.value.split('|'); V.matFase = Number(partes[0]); } else { V.matFase = null; }
+      render();
     },
-    'mat-sede': function (el) {
-      const key = el.dataset.key; S.materiaisChk[key] = S.materiaisChk[key] || {};
-      S.materiaisChk[key].sede = el.checked;
-      if (el.checked) { S.materiaisChk[key].sedePor = autorAtual(); S.materiaisChk[key].sedeEm = new Date().toISOString(); } else { delete S.materiaisChk[key].sedePor; delete S.materiaisChk[key].sedeEm; }
+    matOrcCurso: function (el) { V.matOrcCurso = el.value; render(); },
+    'mat-item': function (el) {
+      const key = el.dataset.key, tipo = el.dataset.tipo;
+      if (el.checked) { S.materiaisChk[key] = { por: autorAtual(), em: new Date().toISOString() }; registrar(tipo === 'sede' ? 'Marcou item de material da sede como recebido' : 'Marcou item de material do polo como comprado', key); }
+      else { delete S.materiaisChk[key]; }
       LS.set('materiaisChk', S.materiaisChk);
-      if (el.checked) registrar('Marcou material da sede como recebido', key);
-      render(); const n = $('input[data-chg="mat-sede"][data-key="' + CSS.escape(key) + '"]'); if (n) n.focus();
+      render(); const n = $('input[data-chg="mat-item"][data-key="' + CSS.escape(key) + '"]'); if (n) n.focus();
     }
   };
   function atualizarWa() { const b = $('#waBtn'); if (b && V.msgTel) b.href = L.waUrl(V.msgTel, $('#msgTxt').value); }
