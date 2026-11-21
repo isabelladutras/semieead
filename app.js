@@ -8,7 +8,7 @@
 
   /* ---------- Armazenamento local (por navegador) + sincronização opcional entre navegadores ---------- */
   const Sync = window.Sync || { configured: function () { return false; }, init: function () {}, push: function () { return Promise.resolve(false); } };
-  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log', 'pratItens', 'ignorados', 'ocorrencias', 'estoque', 'afazeres', 'provas'];
+  const CHAVES_SYNC = ['rows', 'contatos', 'pend', 'prat', 'status', 'tarefas', 'cfg', 'aulaChk', 'matriculas', 'turmaCfg', 'log', 'pratItens', 'ignorados', 'ocorrencias', 'estoque', 'afazeres', 'provas', 'materiaisChk'];
   const LS = {
     get: function (k, def) { try { const v = localStorage.getItem('sp1740.' + k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } },
     set: function (k, v) {
@@ -43,9 +43,14 @@
     ocorrencias: LS.get('ocorrencias', null) || (DATA.ocorrencias || []).map(function (o) { return Object.assign({}, o); }),
     estoque: LS.get('estoque', null) || (DATA.estoque || []).map(function (e) { return Object.assign({}, e); }),
     afazeres: LS.get('afazeres', null) || (DATA.afazeres || []).map(function (t) { return Object.assign({}, t); }),
-    provas: LS.get('provas', [])
+    provas: LS.get('provas', []),
+    materiaisChk: LS.get('materiaisChk', {})
   };
-  const V = { alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', tarefaAba: 'hoje', equipe: [], equipeSaindo: '', msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false };
+  const V = {
+    alunos: null, aCurso: '', aCoorte: '', aRisco: false, aBusca: '', view: 'semana', semana: L.mondayOf(HOJE), mes: YM_HOJE, mesRot: YM_HOJE, fCurso: '', fProf: '', passado: false, pratPassado: false, verIgnorados: false, ocorAba: 'abertas', tarefaAba: 'hoje', equipe: [], equipeSaindo: '', equipeSenhaPara: '', equipeSenhaMsg: '', msgs: [], msgTel: '', syncStatus: 'sem-config', provaVerData: '', provaPassadas: false,
+    matSub: 'check', matCurso: (window.MATERIAIS_CATALOGO && MATERIAIS_CATALOGO.cursos[0] && MATERIAIS_CATALOGO.cursos[0].slug) || '', matFase: null,
+    matOrcCurso: (window.MATERIAIS_ORCAMENTO && MATERIAIS_ORCAMENTO.cursos[0] && MATERIAIS_ORCAMENTO.cursos[0].slug) || ''
+  };
   const D = {};
 
   const PROF_CORES = { Marcelo: '#2454c5', Marcos: '#c2410c', Michele: '#b0245a', Olavo: '#6b3fc4', Rafael: '#0e7490', Vitor: '#4d7c0f', 'Fabrício': '#7a6f5b' };
@@ -67,6 +72,7 @@
     Object.keys(S.contatos).forEach(function (n) { if (PROF_CORES[n]) nomes[n] = 1; });
     D.profs = Object.keys(nomes).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
     D.cursos = Array.from(new Set(D.aulas.map(function (a) { return a.curso; }))).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+    gerarTarefasMaterial();
   }
   const sevGrupo = function (g) { let s = ''; g.aulaIds.forEach(function (id) { if (D.sevAula[id] === 'erro') s = 'erro'; else if (D.sevAula[id] && !s) s = 'atencao'; }); return s; };
   const issuesFuturas = function (sev) { return D.issues.filter(function (i) { return i.fim >= HOJE && (!sev || i.sev === sev) && !S.ignorados[sigIssue(i)]; }); };
@@ -118,6 +124,7 @@
     estoque: '<path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>',
     provas: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="m9 15 2 2 4-4"/>',
     afazeres: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="m8 15 2.5 2.5L16 12"/>',
+    materiais: '<path d="M3 7l9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/><path d="m7 9.5 5-2.2 5 2.2"/>',
     alunos: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
     leads: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>'
@@ -126,7 +133,7 @@
     { id: 'semana', nome: 'Semana' }, { id: 'calendario', nome: 'Calendário' }, { id: 'professores', nome: 'Professores' }, { id: 'provas', nome: 'Provas' },
     { id: 'alunos', nome: 'Alunos' },
     { id: 'conferencia', nome: 'Conferência' }, { id: 'rotina', nome: 'Rotina do mês' }, { id: 'praticas', nome: 'Práticas EAD' },
-    { id: 'ocorrencias', nome: 'Ocorrências' }, { id: 'estoque', nome: 'Estoque' }, { id: 'afazeres', nome: 'Tarefas' },
+    { id: 'ocorrencias', nome: 'Ocorrências' }, { id: 'estoque', nome: 'Estoque' }, { id: 'afazeres', nome: 'Tarefas' }, { id: 'materiais', nome: 'Materiais' },
     { id: 'buscar', nome: 'Buscar' }, { id: 'guia', nome: 'Guia rápido' }, { id: 'dados', nome: 'Dados' }
   ];
   // Links externos fixos do dia a dia da coordenação (abrem em outra aba; não fazem parte da navegação por hash).
@@ -766,7 +773,7 @@
     const cards = visiveis.map(function (t) {
       const atrasada = tarefaAtrasada(t);
       const sev = t.feito ? 'ok' : (atrasada ? 'erro' : 'atencao');
-      return '<article class="pitem ' + sev + '"><div><h3>' + esc(t.demanda) + '</h3>' +
+      return '<article class="pitem ' + sev + '"><div><h3>' + esc(t.demanda) + (t.origemMaterial ? ' <span class="chip">Material</span>' : '') + '</h3>' +
         '<div class="meta">' + (t.responsavel ? esc(t.responsavel) : 'sem responsável') + (t.data ? ' · a partir de ' + esc(L.fmtCurta(t.data)) : '') + (t.prazo ? ' · prazo ' + esc(L.fmtCurta(t.prazo)) + (atrasada ? ' (atrasado)' : '') : ' · sem prazo') + (t.feito ? ' · concluída' : '') + '</div>' +
         listaAtualizacoesTarefaHTML(t) +
         (t.feito ? '' : ('<div class="campo-atualizacao"><textarea id="taf-att-' + esc(t.id) + '" rows="2" placeholder="Registrar que começou a resolver, ou como está o andamento…"></textarea>' +
@@ -809,6 +816,136 @@
     LS.set('afazeres', S.afazeres);
     registrar(novo ? 'Criou tarefa' : 'Editou tarefa', demanda);
     fecharDlg(); render(); toast('Tarefa salva' + (Sync.configured() ? '' : ' neste navegador'));
+  }
+
+  /* ---------- Materiais das aulas práticas ----------
+     Catálogo fixo (não sincronizado — igual a DATA, vem de materiais-data.js): por curso, fase e
+     disciplina, a lista de material de responsabilidade do Polo e a enviada pela Sede, oficina por
+     oficina (fonte: portal oficial da sede). Só o que é marcado (comprado/recebido) é estado do
+     usuário e vai pro CHAVES_SYNC (materiaisChk) — o catálogo em si nunca muda pelo painel.
+     Separado disso, MATERIAIS_ORCAMENTO é só referência de preços/links por curso e semestre (vindo
+     da planilha da coordenação), pra orçamento — não tem check, não é a lista oficial. */
+  const MAT_SEMANAS_ANTES = 3;
+  function materiaCatalogo() { return (window.MATERIAIS_CATALOGO && MATERIAIS_CATALOGO.cursos) || []; }
+  function materiaOrcamento() { return (window.MATERIAIS_ORCAMENTO && MATERIAIS_ORCAMENTO.cursos) || []; }
+  function chaveMaterial(cursoSlug, fase, discIdx, oficinaId) { return cursoSlug + '|f' + fase + '|d' + discIdx + '|' + oficinaId; }
+  function oficinaTemMaterial(o) { return !!((o.materialPolo && o.materialPolo.length) || (o.materialSede && o.materialSede.length)); }
+  /* Casa uma aula do calendário (curso + disciplina, texto livre digitado na planilha de aulas) com
+     a disciplina correspondente no catálogo (texto vindo do portal da sede) — por nome normalizado,
+     já que são os mesmos nomes oficiais da grade curricular, só podem variar maiúsculas/acentos. Se
+     não achar, não gera nada pra essa aula (silencioso: evita tarefa errada por falso positivo). */
+  function discCatalogoParaAula(a) {
+    const alvo = L.norm(a.curso || '');
+    if (!alvo) return null;
+    const candidatos = materiaCatalogo().filter(function (c) { const n = L.norm(c.curso); return n === alvo || n.indexOf(alvo) === 0; });
+    for (let ci = 0; ci < candidatos.length; ci++) {
+      const c = candidatos[ci], fases = c.fases || [];
+      for (let fi = 0; fi < fases.length; fi++) {
+        const f = fases[fi], discs = f.disciplinas || [];
+        for (let di = 0; di < discs.length; di++) {
+          if (discs[di].nome && L.norm(discs[di].nome) === L.norm(a.disc || '')) return { curso: c, fase: f, disc: discs[di], discIdx: di };
+        }
+      }
+    }
+    return null;
+  }
+  /* Gera (uma única vez por aula — id estável, não duplica em execuções seguintes) duas tarefas na
+     aba Tarefas: verificar a compra com MAT_SEMANAS_ANTES de antecedência, e separar o material
+     2 dias antes da aula — só para aulas futuras cuja disciplina tenha material cadastrado. */
+  function gerarTarefasMaterial() {
+    if (!materiaCatalogo().length || !S.afazeres) return;
+    let mudou = false, criadas = 0;
+    (D.aulas || []).forEach(function (a) {
+      if (!a.datas || !a.datas.length) return;
+      const dataAula = a.datas.slice().sort()[0];
+      if (dataAula < HOJE) return;
+      const achado = discCatalogoParaAula(a);
+      if (!achado || !(achado.disc.oficinas || []).some(oficinaTemMaterial)) return;
+      const base = achado.disc.nome + ' — ' + a.curso + ' (Fase ' + achado.fase.fase + ')';
+      const idVerif = 'mat-compra-' + a.id, idSep = 'mat-separar-' + a.id;
+      if (!S.afazeres.some(function (x) { return x.id === idVerif; })) {
+        S.afazeres.push({ id: idVerif, demanda: 'Verificar compra de material — ' + base, responsavel: '', data: '', prazo: L.addDays(dataAula, -7 * MAT_SEMANAS_ANTES), feito: false, origemMaterial: 'compra' });
+        mudou = true; criadas++;
+      }
+      if (!S.afazeres.some(function (x) { return x.id === idSep; })) {
+        S.afazeres.push({ id: idSep, demanda: 'Separar material — ' + base, responsavel: '', data: '', prazo: L.addDays(dataAula, -2), feito: false, origemMaterial: 'separar' });
+        mudou = true; criadas++;
+      }
+    });
+    if (mudou) { LS.set('afazeres', S.afazeres); if (criadas) registrar('Gerou tarefas de material automaticamente', criadas + ' tarefa(s)'); }
+  }
+  function viewMateriais() {
+    const sub = V.matSub === 'orcamento' ? 'orcamento' : 'check';
+    const cabeca = '<div class="topo"><div><h1>Materiais das aulas práticas</h1><p>O que é responsabilidade do polo comprar e o que a sede envia, por curso e disciplina — lista oficial da sede, pra separar do que os professores sugerem a mais.</p></div></div>' +
+      '<div class="acoes subnav">' +
+      '<button type="button" class="btn sm' + (sub === 'check' ? ' on' : '') + '" data-act="mat-sub" data-sub="check">Checklist por disciplina</button>' +
+      '<button type="button" class="btn sm' + (sub === 'orcamento' ? ' on' : '') + '" data-act="mat-sub" data-sub="orcamento">Orçamento de referência</button>' +
+      '</div>';
+    return cabeca + (sub === 'orcamento' ? viewMateriaisOrcamento() : viewMateriaisCheck());
+  }
+  function viewMateriaisCheck() {
+    const cursos = materiaCatalogo();
+    if (!cursos.length) return '<div class="vazio">Catálogo de materiais não carregado.</div>';
+    const curso = cursos.find(function (c) { return c.slug === V.matCurso; }) || cursos[0];
+    const fases = curso.fases || [];
+    const faseSel = V.matFase;
+    const selCurso = '<select id="mat-curso" data-chg="matCurso">' + cursos.map(function (c) { return '<option value="' + esc(c.slug) + '"' + (c.slug === curso.slug ? ' selected' : '') + '>' + esc(c.curso) + '</option>'; }).join('') + '</select>';
+    const botFases = '<div class="acoes subnav" style="margin-top:.5rem">' +
+      '<button type="button" class="btn sm' + (faseSel == null ? ' on' : '') + '" data-act="mat-fase" data-fase="">Todas as fases</button>' +
+      fases.map(function (f) { return '<button type="button" class="btn sm' + (faseSel === f.fase ? ' on' : '') + '" data-act="mat-fase" data-fase="' + f.fase + '">Fase ' + f.fase + '</button>'; }).join('') +
+      '</div>';
+    const fasesVisiveis = faseSel == null ? fases : fases.filter(function (f) { return f.fase === faseSel; });
+    let totalPolo = 0, feitasPolo = 0, totalSede = 0, feitasSede = 0;
+    const cards = [];
+    fasesVisiveis.forEach(function (f) {
+      (f.disciplinas || []).forEach(function (disc, discIdx) {
+        const ofs = (disc.oficinas || []).filter(oficinaTemMaterial);
+        if (!ofs.length) return;
+        const blocos = ofs.map(function (of) {
+          const key = chaveMaterial(curso.slug, f.fase, discIdx, of.id);
+          const chk = S.materiaisChk[key] || {};
+          let colPolo = '<p class="muted small">Sem material do polo nesta oficina.</p>', colSede = '<p class="muted small">A sede não envia material pra esta oficina.</p>';
+          if (of.materialPolo.length) {
+            totalPolo++; if (chk.polo) feitasPolo++;
+            colPolo = '<ul class="lista-material">' + of.materialPolo.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
+              '<label class="check"><input type="checkbox" data-chg="mat-polo" data-key="' + esc(key) + '"' + (chk.polo ? ' checked' : '') + '> Comprado' + (chk.polo && chk.poloPor ? (' — ' + esc(chk.poloPor)) : '') + '</label>';
+          }
+          if (of.materialSede.length) {
+            totalSede++; if (chk.sede) feitasSede++;
+            colSede = '<ul class="lista-material">' + of.materialSede.map(function (i) { return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
+              '<label class="check"><input type="checkbox" data-chg="mat-sede" data-key="' + esc(key) + '"' + (chk.sede ? ' checked' : '') + '> Recebido' + (chk.sede && chk.sedePor ? (' — ' + esc(chk.sedePor)) : '') + '</label>';
+          }
+          return '<div class="oficina"><h4>' + esc(of.nome || ('Oficina ' + of.numero + (of.opcao ? ' · opção ' + of.opcao : ''))) + '</h4>' +
+            '<div class="campos"><div><label>Material do Polo</label>' + colPolo + '</div><div><label>Material da Sede</label>' + colSede + '</div></div></div>';
+        }).join('');
+        cards.push('<section class="bloco"><h3>' + esc(disc.nome) + (disc.obrigatoria === false ? ' <span class="chip">eletiva</span>' : '') + '</h3>' + blocos + '</section>');
+      });
+    });
+    const resumo = '<p class="muted small">' + feitasPolo + '/' + totalPolo + ' itens de polo comprados · ' + feitasSede + '/' + totalSede + ' itens de sede recebidos nesta seleção</p>';
+    return '<div class="campos" style="margin-top:.6rem"><div><label for="mat-curso">Curso</label>' + selCurso + '</div></div>' + botFases + resumo +
+      (cards.length ? cards.join('') : '<div class="vazio">Nenhuma oficina com material cadastrado nesta fase.</div>');
+  }
+  function viewMateriaisOrcamento() {
+    const cursos = materiaOrcamento();
+    if (!cursos.length) return '<div class="vazio">Planilha de orçamento não carregada.</div>';
+    const curso = cursos.find(function (c) { return c.slug === V.matOrcCurso; }) || cursos[0];
+    const selCurso = '<select id="mat-orc-curso" data-chg="matOrcCurso">' + cursos.map(function (c) { return '<option value="' + esc(c.slug) + '"' + (c.slug === curso.slug ? ' selected' : '') + '>' + esc(c.curso) + '</option>'; }).join('') + '</select>';
+    const fmtRS = function (n) { return (typeof n === 'number') ? ('R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : '—'; };
+    const tabelaItens = function (itens) {
+      if (!itens.length) return '<p class="muted small">Sem itens.</p>';
+      return '<table class="tabela" style="margin-top:.5rem"><thead><tr><th>Item</th><th>Tipo</th><th>Qtd</th><th>Preço unit.</th><th>Total</th><th></th></tr></thead><tbody>' +
+        itens.map(function (it) {
+          return '<tr><td>' + esc(it.item) + '</td><td>' + esc(it.tipo || '') + '</td><td>' + (it.quantidade != null ? esc(String(it.quantidade)) : '—') + '</td><td>' + fmtRS(it.precoUnitario) + '</td><td>' + fmtRS(it.precoTotal) + '</td><td>' + (it.link ? ('<a href="' + esc(it.link) + '" target="_blank" rel="noopener">link</a>') : '') + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    };
+    const blocosSem = (curso.semestres || []).map(function (s) {
+      const totalCusto = s.itens.reduce(function (acc, it) { return acc + (typeof it.precoTotal === 'number' ? it.precoTotal : 0); }, 0);
+      return '<section class="bloco"><h3>' + s.semestre + 'º semestre <span class="muted small">(' + fmtRS(totalCusto) + ')</span></h3>' + tabelaItens(s.itens) + '</section>';
+    }).join('');
+    const blocoSemSem = (curso.semSemestreDefinido || []).length ? ('<section class="bloco"><h3>Sem semestre definido na planilha</h3><p class="muted small">Itens de uma planilha de orçamento geral do curso, sem indicação de qual semestre usa — pode ter alguma sobreposição com as listas acima.</p>' + tabelaItens(curso.semSemestreDefinido) + '</section>') : '';
+    return '<div class="campos" style="margin-top:.6rem"><div><label for="mat-orc-curso">Curso</label>' + selCurso + '</div></div>' +
+      '<p class="muted small">Referência de preços e links de compra, vindos da planilha da coordenação — não é a lista oficial de responsabilidade (essa fica na aba Checklist por disciplina).</p>' +
+      (blocosSem || '<div class="vazio">Sem dados de orçamento pra este curso.</div>') + blocoSemSem;
   }
 
   /* ---------- Conferência ---------- */
@@ -1128,21 +1265,28 @@
     const inativos = membros.filter(function (x) { return x.ativa === false; });
     const linhaAtivo = function (x) {
       return '<tr><td>' + esc(x.nome) + ' <span class="chip">' + (x.papel === 'permanencia' ? 'Permanência' : 'Vendedora') + '</span></td><td>' + esc(x.email || '—') + '</td>' +
-        '<td><button type="button" class="btn sm perigo" data-act="equipe-desativar" data-nome="' + esc(x.nome) + '">Desativar</button></td></tr>';
+        '<td><button type="button" class="btn sm" data-act="equipe-senha-abrir" data-nome="' + esc(x.nome) + '">Senha de acesso</button> <button type="button" class="btn sm perigo" data-act="equipe-desativar" data-nome="' + esc(x.nome) + '">Desativar</button></td></tr>';
     };
     const boxSaida = V.equipeSaindo ? ('<div class="corpo" style="margin-top:.6rem;padding:.7rem .9rem;border:1px solid var(--line);border-radius:8px"><b>Desativar ' + esc(V.equipeSaindo) + '</b>' +
       '<p class="muted small">Ela perde o acesso na hora, mesmo que ainda tenha senha. Dá para reativar depois.</p>' +
       '<div class="acoes" style="margin-top:.4rem"><button type="button" class="btn perigo" data-act="equipe-desativar-ok">Desativar</button><button type="button" class="btn fim" data-act="equipe-desativar-cancelar">Cancelar</button></div></div>') : '';
+    const membroSenha = V.equipeSenhaPara ? membros.find(function (x) { return x.nome === V.equipeSenhaPara; }) : null;
+    const boxSenha = membroSenha ? ('<div class="corpo" style="margin-top:.6rem;padding:.7rem .9rem;border:1px solid var(--line);border-radius:8px"><b>Senha de acesso de ' + esc(membroSenha.nome) + '</b>' +
+      '<p class="muted small">E-mail: ' + esc(membroSenha.email || '—') + '. É a mesma conta do sistema de leads e deste painel — ao definir aqui, a senha muda nos dois. Depois, avise ela por fora (WhatsApp, por exemplo) com o e-mail e a senha.</p>' +
+      '<div class="campos" style="margin-top:.4rem"><div><label for="eq-senha-nova">Nova senha</label><input type="text" id="eq-senha-nova" autocomplete="off" placeholder="mínimo 6 caracteres"></div></div>' +
+      (V.equipeSenhaMsg ? '<p class="muted small" style="margin-top:.4rem">' + esc(V.equipeSenhaMsg) + '</p>' : '') +
+      '<div class="acoes" style="margin-top:.5rem"><button type="button" class="btn primario" data-act="equipe-senha-salvar">Definir senha</button><button type="button" class="btn fim" data-act="equipe-senha-cancelar">Cancelar</button></div></div>') : '';
     return '<section class="bloco"><h2>Equipe (acesso ao sistema de leads e a este painel)</h2>' +
       '<p class="muted small">Quem tiver a função <b>Permanência</b> entra também aqui no painel, com o mesmo e-mail e senha. Vendedoras só acessam o sistema de leads — gerencie as duas listas por aqui ou por lá, é a mesma equipe.</p>' +
       '<div class="campos" style="margin-top:.6rem">' +
       '<div><label for="eq-nome">Nome</label><input type="text" id="eq-nome" autocomplete="off"></div>' +
       '<div><label for="eq-email">E-mail</label><input type="email" id="eq-email" autocomplete="off"></div>' +
+      '<div><label for="eq-senha">Senha de acesso</label><input type="text" id="eq-senha" autocomplete="off" placeholder="mínimo 6 caracteres"></div>' +
       '<div><label for="eq-papel">Função</label><select id="eq-papel"><option value="permanencia">Permanência (este painel)</option><option value="vendedora">Vendedora (sistema de leads)</option></select></div>' +
       '</div><div class="acoes" style="margin-top:.5rem"><button type="button" class="btn primario" data-act="equipe-adicionar">Adicionar à equipe</button></div>' +
-      '<p class="muted small" style="margin-top:.5rem">Depois de adicionar, mande o link pra ela. No primeiro acesso ela clica em “Primeiro acesso: criar minha senha” usando este mesmo e-mail.</p>' +
+      '<p class="muted small" style="margin-top:.5rem">Isso já cria o acesso dela com esse e-mail e senha — ela não precisa fazer nada. Depois, avise ela por fora (WhatsApp, por exemplo) com o e-mail e a senha pra ela entrar.</p>' +
       (ativos.length ? ('<table class="tabela" style="margin-top:.7rem"><thead><tr><th>Pessoa</th><th>E-mail</th><th></th></tr></thead><tbody>' + ativos.map(linhaAtivo).join('') + '</tbody></table>') : '<p class="muted small" style="margin-top:.6rem">Ninguém cadastrado ainda.</p>') +
-      boxSaida +
+      boxSaida + boxSenha +
       (inativos.length ? ('<p class="muted small" style="margin-top:.6rem"><b>Inativas:</b> ' + inativos.map(function (x) { return esc(x.nome) + ' (<button type="button" class="btn sm" data-act="equipe-reativar" data-nome="' + esc(x.nome) + '">reativar</button>)'; }).join(' · ') + '</p>') : '') +
       '</section>';
   }
@@ -1339,7 +1483,7 @@
     baixar('calendario-polo-1740.xlsx', XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   }
   function backup() {
-    baixar('backup-painel-1740.json', JSON.stringify({ versao: 1, rows: S.rows, contatos: S.contatos, status: S.status, tarefas: S.tarefas, cfg: S.cfg, pend: S.pend, prat: S.prat, pratItens: S.pratItens, ocorrencias: S.ocorrencias, estoque: S.estoque, afazeres: S.afazeres, provas: S.provas }, null, 1), 'application/json');
+    baixar('backup-painel-1740.json', JSON.stringify({ versao: 1, rows: S.rows, contatos: S.contatos, status: S.status, tarefas: S.tarefas, cfg: S.cfg, pend: S.pend, prat: S.prat, pratItens: S.pratItens, ocorrencias: S.ocorrencias, estoque: S.estoque, afazeres: S.afazeres, provas: S.provas, materiaisChk: S.materiaisChk }, null, 1), 'application/json');
   }
 
   /* ---------- Ações ---------- */
@@ -1399,16 +1543,49 @@
     'equipe-adicionar': function () {
       const nome = ($('#eq-nome').value || '').trim().replace(/\s+/g, ' ');
       const emailNovo = ($('#eq-email').value || '').trim().toLowerCase();
+      const senha = ($('#eq-senha').value || '');
       const papel = $('#eq-papel').value;
       if (!nome) { toast('Informe o nome'); return; }
       const atuais = (V.equipe || []).map(function (x) { return Object.assign({}, x); });
       if (atuais.some(function (x) { return L.norm(x.nome) === L.norm(nome); })) { toast('Já existe alguém com esse nome na equipe'); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNovo)) { toast('Informe um e-mail válido'); return; }
       if (emailNovo && atuais.some(function (x) { return String(x.email || '').toLowerCase() === emailNovo; })) { toast('Esse e-mail já está na equipe'); return; }
+      if (senha.length < 6) { toast('A senha precisa ter pelo menos 6 caracteres'); return; }
       atuais.push({ nome: nome, email: emailNovo, ativa: true, desde: HOJE, papel: papel });
       Sync.salvarEquipe(atuais).then(function (ok) {
-        if (ok) { registrar('Adicionou à equipe', nome + ' · ' + (papel === 'permanencia' ? 'Permanência' : 'Vendedora')); toast(nome + ' adicionada à equipe'); }
-        else toast('Não salvou — confira se é mesmo o seu login de administradora.');
+        if (!ok) { toast('Não salvou — confira se é mesmo o seu login de administradora.'); return; }
+        registrar('Adicionou à equipe', nome + ' · ' + (papel === 'permanencia' ? 'Permanência' : 'Vendedora'));
+        render();
+        if (!Sync.criarAcesso) { toast(nome + ' adicionada à equipe'); return; }
+        Sync.criarAcesso(emailNovo, senha).then(function (r) {
+          if (r.ok) toast(nome + ' adicionada, acesso pronto');
+          else if (r.erro === 'auth/email-already-in-use') toast(nome + ' adicionada, mas esse e-mail já tinha conta — use "Senha de acesso" na lista pra trocar a senha');
+          else toast(nome + ' adicionada, mas não deu pra criar o acesso agora — tente de novo em "Senha de acesso"');
+        });
+      });
+    },
+    'equipe-senha-abrir': function (el) { V.equipeSenhaPara = el.dataset.nome; V.equipeSenhaMsg = ''; render(); },
+    'equipe-senha-cancelar': function () { V.equipeSenhaPara = ''; V.equipeSenhaMsg = ''; render(); },
+    'equipe-senha-salvar': function () {
+      const nome = V.equipeSenhaPara; if (!nome) return;
+      const m = (V.equipe || []).find(function (x) { return x.nome === nome; });
+      if (!m || !m.email) { toast('Essa pessoa não tem e-mail cadastrado'); return; }
+      if (!Sync.criarAcesso) { toast('Essa ação não está disponível agora'); return; }
+      const senha = ($('#eq-senha-nova') && $('#eq-senha-nova').value) || '';
+      if (senha.length < 6) { toast('A senha precisa ter pelo menos 6 caracteres'); return; }
+      Sync.criarAcesso(m.email, senha).then(function (r) {
+        if (r.ok) {
+          registrar('Definiu senha de acesso', nome);
+          V.equipeSenhaPara = ''; V.equipeSenhaMsg = '';
+          toast('Senha definida — avise ' + nome + ' por fora com o e-mail e a senha');
+        } else if (r.erro === 'auth/email-already-in-use') {
+          V.equipeSenhaMsg = 'Essa conta já existe. Pra trocar a senha: entre em console.firebase.google.com → projeto leads-unifecaf → Authentication → ache o e-mail dela → exclua o acesso → clique em "Definir senha" de novo aqui.';
+        } else if (r.erro === 'auth/invalid-email') {
+          V.equipeSenhaMsg = 'O e-mail cadastrado para essa pessoa não é válido.';
+        } else {
+          V.equipeSenhaMsg = 'Não consegui criar o acesso agora — confira a internet e tente de novo.';
+        }
+        render();
       });
     },
     'equipe-desativar': function (el) { V.equipeSaindo = el.dataset.nome; render(); },
@@ -1524,6 +1701,8 @@
       fecharDlg(); render(); toast('Item excluído');
     },
     'tarefa-aba': function (el) { V.tarefaAba = el.dataset.aba; render(); },
+    'mat-sub': function (el) { V.matSub = el.dataset.sub; render(); },
+    'mat-fase': function (el) { V.matFase = el.dataset.fase ? Number(el.dataset.fase) : null; render(); },
     'novo-afazer': function () { abrirEditarAfazer(null); },
     'editar-afazer': function (el) { abrirEditarAfazer(el.dataset.id); },
     'salvar-afazer': salvarAfazer,
@@ -1594,6 +1773,24 @@
     'matr-formada': function (el) { const key = el.dataset.key; S.turmaCfg[key] = S.turmaCfg[key] || {}; S.turmaCfg[key].formada = el.checked; LS.set('turmaCfg', S.turmaCfg); registrar(el.checked ? 'Marcou turma como formada' : 'Desmarcou turma como formada', key.replace('|', ' · ')); render(); },
     msgSel: function (el) {
       const m = V.msgs.find(function (x) { return x.id === el.value; }); if (!m) return; $('#msgTxt').value = m.texto; atualizarWa();
+    },
+    matCurso: function (el) { V.matCurso = el.value; V.matFase = null; render(); },
+    matOrcCurso: function (el) { V.matOrcCurso = el.value; render(); },
+    'mat-polo': function (el) {
+      const key = el.dataset.key; S.materiaisChk[key] = S.materiaisChk[key] || {};
+      S.materiaisChk[key].polo = el.checked;
+      if (el.checked) { S.materiaisChk[key].poloPor = autorAtual(); S.materiaisChk[key].poloEm = new Date().toISOString(); } else { delete S.materiaisChk[key].poloPor; delete S.materiaisChk[key].poloEm; }
+      LS.set('materiaisChk', S.materiaisChk);
+      if (el.checked) registrar('Marcou material do polo como comprado', key);
+      render(); const n = $('input[data-chg="mat-polo"][data-key="' + CSS.escape(key) + '"]'); if (n) n.focus();
+    },
+    'mat-sede': function (el) {
+      const key = el.dataset.key; S.materiaisChk[key] = S.materiaisChk[key] || {};
+      S.materiaisChk[key].sede = el.checked;
+      if (el.checked) { S.materiaisChk[key].sedePor = autorAtual(); S.materiaisChk[key].sedeEm = new Date().toISOString(); } else { delete S.materiaisChk[key].sedePor; delete S.materiaisChk[key].sedeEm; }
+      LS.set('materiaisChk', S.materiaisChk);
+      if (el.checked) registrar('Marcou material da sede como recebido', key);
+      render(); const n = $('input[data-chg="mat-sede"][data-key="' + CSS.escape(key) + '"]'); if (n) n.focus();
     }
   };
   function atualizarWa() { const b = $('#waBtn'); if (b && V.msgTel) b.href = L.waUrl(V.msgTel, $('#msgTxt').value); }
@@ -1630,7 +1827,7 @@
   });
 
   /* ---------- Render e rotas ---------- */
-  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, ocorrencias: viewOcorrencias, provas: viewProvas, estoque: viewEstoque, afazeres: viewAfazeres, buscar: viewBusca, guia: viewGuia, dados: viewDados, alunos: viewAlunos };
+  const RENDER = { semana: viewSemana, calendario: viewCalendario, professores: viewProfessores, conferencia: viewConferencia, rotina: viewRotina, praticas: viewPraticas, ocorrencias: viewOcorrencias, provas: viewProvas, estoque: viewEstoque, afazeres: viewAfazeres, materiais: viewMateriais, buscar: viewBusca, guia: viewGuia, dados: viewDados, alunos: viewAlunos };
   function banner() {
     if (Sync.configured()) return '';
     const rascunho = LS.get('rows', null), base = LS.get('rowsBase', '');
